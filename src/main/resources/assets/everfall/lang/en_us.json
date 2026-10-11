@@ -1,0 +1,12 @@
+{
+  "everfall.config.title": "Everfall Settings",
+  "yacl3.config.everfall:client_config.category.general": "General",
+  "yacl3.config.everfall:client_config.category.particles": "Particles",
+  "yacl3.config.everfall:client_config.category.interaction": "Interaction",
+  "yacl3.config.everfall:client_config.enabled": "Enable Everfall",
+  "yacl3.config.everfall:client_config.showInWorld": "Show on screens over a world",
+  "yacl3.config.everfall:client_config.density": "Particle density",
+  "yacl3.config.everfall:client_config.maxParticles": "Maximum particles",
+  "yacl3.config.everfall:client_config.wind": "Wind",
+  "yacl3.config.everfall:client_config.gravity": "Gravity"
+}

@@ -3,28 +3,35 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "description": "A client-side mod that adds configurable seasonal particles to GUI screens.",
   "authors": [
-    "Me!"
+    "Yori3o"
   ],
   "contact": {
-    "homepage": "https://stonecutter.kikugie.dev/",
-    "sources": "https://codeberg.org/stonecutter/template-fabric"
+    "homepage": "https://github.com/yori3o/everfall",
+    "sources": "https://github.com/yori3o/everfall"
   },
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/template/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
-    "main": [
-      "com.example.TemplateModFabric"
+    "client": [
+      "com.yori3o.everfall.platform.fabric.EverfallFabricClient"
+    ],
+    "modmenu": [
+      "com.yori3o.everfall.platform.fabric.ModMenuIntegration"
     ]
   },
   "mixins": [
-    "template.mixins.json"
+    "everfall.mixins.json"
   ],
   "accessWidener": "template.ct",
   "depends": {
     "fabricloader": ">=${loader}",
-    "minecraft": "${minecraft}"
+    "minecraft": "${minecraft}",
+    "yet_another_config_lib_v3": ">=${yacl}"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

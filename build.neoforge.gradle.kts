@@ -6,6 +6,14 @@ plugins {
 version = "${property("mod.version")}+${sc.current.version}"
 base.archivesName = "${property("mod.id") as String}-neoforge"
 
+sourceSets.main.get().java.srcDir(rootProject.file("src/neoforge/java"))
+sourceSets.main.get().java.srcDir(rootProject.file(
+    if (sc.current.parsed >= "26.1") "src/mc/modern/java" else "src/mc/legacy/java"
+))
+sourceSets.main.get().resources.srcDir(rootProject.file(
+    if (sc.current.parsed >= "26.1") "src/neoforge/resources/modern" else "src/neoforge/resources/legacy"
+))
+
 val requiredJava = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
     sc.current.parsed >= "1.20.5" -> JavaVersion.VERSION_21
@@ -28,14 +36,14 @@ repositories {
 }
 
 dependencies {
-
+    implementation("maven.modrinth:yacl:${property("deps.yacl")}")
 }
 
 neoForge {
     version = property("deps.neo_loader") as String
 
     mods {
-        register("template") {
+        register("everfall") {
             sourceSet(sourceSets.main.get())
         }
     }
@@ -76,6 +84,7 @@ tasks {
             register("name", sc.properties["mod.name"])
             register("version", sc.properties["mod.version"])
             register("minecraft", sc.properties["mod.mc_compat"])
+            register("yacl", sc.properties.get<String>("deps.yacl").substringBefore('+'))
         }
 
         filesMatching("META-INF/neoforge.mods.toml") { expand(props) }

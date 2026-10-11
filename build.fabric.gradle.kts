@@ -19,6 +19,14 @@ val requiredJava: JavaVersion = when {
 val compatibleVersions: List<String> = sc.properties.rawOrNull("mod", "mc_releases")
     ?.asList().orEmpty().map { it.toString() }
 
+sourceSets.main.get().java.srcDir(rootProject.file("src/fabric/java"))
+sourceSets.main.get().java.srcDir(rootProject.file(
+    if (sc.current.parsed >= "26.1") "src/mc/modern/java" else "src/mc/legacy/java"
+))
+sourceSets.main.get().resources.srcDir(rootProject.file(
+    if (sc.current.parsed >= "26.1") "src/fabric/resources/modern" else "src/fabric/resources/legacy"
+))
+
 repositories {
     /**
      * Restricts dependency search of the given [groups] to the [maven URL][url],
@@ -48,6 +56,9 @@ dependencies {
     // Use `mod{dependency type}` even on 26.1+ - loom-back-compat converts them
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
     fapi("fabric-lifecycle-events-v1", "fabric-resource-loader-v0", "fabric-content-registries-v0", "fabric-registry-sync-v0")
+    modImplementation("maven.modrinth:yacl:${property("deps.yacl")}")
+    modCompileOnly("maven.modrinth:modmenu:${property("deps.modmenu")}")
+    modLocalRuntime("maven.modrinth:modmenu:${property("deps.modmenu")}")
 }
 
 loom {
@@ -56,6 +67,12 @@ loom {
         rootProject.file("src/main/resources/template.ct"),
         "build/processed.ct"
     )
+    if (sc.current.parsed < "26.1") {
+        mixin {
+            useLegacyMixinAp = true
+            defaultRefmapName = "everfall.refmap.json"
+        }
+    }
 
     decompilerOptions.named("vineflower") {
         options.put("mark-corresponding-synthetics", "1") // Adds names to lambdas - useful for mixins
@@ -93,6 +110,7 @@ tasks {
             register("version", sc.properties["mod.version"])
             register("minecraft", sc.properties["mod.mc_compat"])
             register("loader", Regex("\\d+\\.\\d+").find(sc.properties.get<String>("deps.fabric_loader"))!!.value)
+            register("yacl", sc.properties.get<String>("deps.yacl").substringBefore('+'))
         }
 
         filesMatching("fabric.mod.json") { expand(props) }

@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.yori3o.everfall.mc.mixin",
+  "refmap": "everfall.refmap.json",
+  "compatibilityLevel": "${java}",
+  "client": [
+    "ScreenRenderMixin",
+    "MouseHandlerMixin",
+    "AbstractWidgetMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

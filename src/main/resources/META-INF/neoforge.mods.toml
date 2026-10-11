@@ -1,4 +1,4 @@
-license = "CC0-1.0"
+license = "MIT"
 
 modLoader="javafml"
 loaderVersion="[1,)"
@@ -7,15 +7,15 @@ loaderVersion="[1,)"
 modId = "${id}"
 displayName = "${name}"
 version = "${version}"
-authors = "Me!"
-description = "This is an example description! Tell everyone what your mod is about!"
+authors = "Yori3o"
+description = "A client-side mod that adds configurable seasonal particles to GUI screens."
 
 logoFile = "assets/template/icon.png"
-#displayURL = "..."
+displayURL = "https://github.com/yori3o/everfall"
 #issueTrackerUrl = "..."
 
 [[mixins]]
-config = "template.mixins.json"
+config = "everfall.mixins.json"
 
 [[dependencies.${id}]]
 modId = "minecraft"
@@ -23,3 +23,10 @@ type = "required"
 versionRange = "${minecraft}"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.${id}]]
+modId = "yet_another_config_lib_v3"
+type = "required"
+versionRange = "[${yacl},)"
+ordering = "NONE"
+side = "CLIENT"

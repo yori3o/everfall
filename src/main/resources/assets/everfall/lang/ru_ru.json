@@ -1,0 +1,12 @@
+{
+  "everfall.config.title": "Настройки Everfall",
+  "yacl3.config.everfall:client_config.category.general": "Общие",
+  "yacl3.config.everfall:client_config.category.particles": "Частицы",
+  "yacl3.config.everfall:client_config.category.interaction": "Взаимодействие",
+  "yacl3.config.everfall:client_config.enabled": "Включить Everfall",
+  "yacl3.config.everfall:client_config.showInWorld": "Показывать на экранах поверх мира",
+  "yacl3.config.everfall:client_config.density": "Плотность частиц",
+  "yacl3.config.everfall:client_config.maxParticles": "Максимум частиц",
+  "yacl3.config.everfall:client_config.wind": "Ветер",
+  "yacl3.config.everfall:client_config.gravity": "Гравитация"
+}
