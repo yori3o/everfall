@@ -32,3 +32,5 @@ Automatic selection displays the current seasonal profile and disables its manua
 General settings include a master volume slider (0-100%) for all Everfall sounds. Zero mutes the mod; the default 100% preserves existing sound levels.
 
 Independent additional profiles can run together with the main seasonal effect. Features settings enable each layer separately. Built-in fireflies slowly wander and pulse in the lower third in spring and summer between local 22:00 and 04:00. All layers share the configured particle count. See [additional profile definitions](docs/ADDITIONAL_PROFILES.md) for custom layers, overrides, and annual holiday conditions.
+
+Profile textures support relative spawn weights and optional one-cycle alternative animations triggered by chance and cooldown conditions. Existing profiles remain compatible. See [texture animation format](docs/TEXTURE_ANIMATIONS.md) for details.

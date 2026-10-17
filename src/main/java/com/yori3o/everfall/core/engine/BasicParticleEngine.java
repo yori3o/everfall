@@ -49,7 +49,9 @@ public final class BasicParticleEngine implements ParticleEngine {
     private float[] swayAmplitude = new float[0];
     private float[] swayFrequency = new float[0];
     private float[] swayFactor = new float[0];
-    private float[] animationTimer = new float[0];
+    private double[] animationTimer = new double[0];
+    private double[] alternativeCooldownAge = new double[0];
+    private boolean[] alternativeAnimation = new boolean[0];
     private int[] textureIndex = new int[0];
     private int[] frameIndex = new int[0];
     private long[] particleIds = new long[0];
@@ -143,6 +145,7 @@ public final class BasicParticleEngine implements ParticleEngine {
         simulate(input, dt, particleLimit, pendingSweep);
         pendingSweep = false;
         pendingSweepDuration = 0.0f;
+        output.sprites.flipX = input.profile.flipWithWind() && input.config.wind < 0;
         emit();
         return output;
     }
@@ -167,6 +170,7 @@ public final class BasicParticleEngine implements ParticleEngine {
         int active = 0;
         for (int i = 0; i < count; i++) {
             if (particleIds[i] == draggedParticleId) {
+                alternativeCooldownAge[i] += dt;
                 updateSwayFactor(i, 0.0f, dt);
                 x[i] = input.cursorX + dragOffsetX - size[i] * 0.5f;
                 y[i] = input.cursorY + dragOffsetY - size[i] * 0.5f;
@@ -201,7 +205,7 @@ public final class BasicParticleEngine implements ParticleEngine {
                             / (FULL_SWEEP_SPEED - MIN_SWEEP_SPEED), 0.0f, 1.0f);
                     if (speedFactor > 0.0f) {
                         addSound(input.profile.sweepSounds(), (byte) 0, particleIds[i],
-                                grounded[i] ? 0.6f : 0.25f);
+                                grounded[i] ? 0.5f : 0.2f);
                     }
                     if (grounded[i]) {
                         float sweepImpulse = Math.min(cursorSpeed * SWEEP_IMPULSE_PER_SECOND,
@@ -295,6 +299,8 @@ public final class BasicParticleEngine implements ParticleEngine {
             }
             if (!grounded[i]) {
                 advanceAnimation(i, dt, input.profile);
+            } else {
+                alternativeCooldownAge[i] += dt;
             }
             if (y[i] >= input.screenHeight + size[i] || x[i] < -size[i]
                     || x[i] >= input.screenWidth + size[i]) {
@@ -323,6 +329,8 @@ public final class BasicParticleEngine implements ParticleEngine {
         swayFrequency = Arrays.copyOf(swayFrequency, capacity);
         swayFactor = Arrays.copyOf(swayFactor, capacity);
         animationTimer = Arrays.copyOf(animationTimer, capacity);
+        alternativeCooldownAge = Arrays.copyOf(alternativeCooldownAge, capacity);
+        alternativeAnimation = Arrays.copyOf(alternativeAnimation, capacity);
         textureIndex = Arrays.copyOf(textureIndex, capacity);
         frameIndex = Arrays.copyOf(frameIndex, capacity);
         particleIds = Arrays.copyOf(particleIds, capacity);
@@ -338,7 +346,7 @@ public final class BasicParticleEngine implements ParticleEngine {
             float alpha = clamp(lifetime[i] / FADE_OUT_SECONDS, 0.0f, 1.0f);
             float sway = (float) Math.sin(phase[i]) * swayAmplitude[i] * swayFactor[i];
             output.sprites.add(x[i] + sway, y[i], size[i], size[i], phase[i], alpha, 0xffffffff, FRONT_LAYER,
-                    textureIndex[i], frameIndex[i]);
+                    textureIndex[i], frameIndex[i], alternativeAnimation[i]);
         }
     }
 
@@ -373,10 +381,9 @@ public final class BasicParticleEngine implements ParticleEngine {
     }
 
     private void initializeParticle(FrameInput input, int index) {
-        int textureCount = input.profile.textures().size();
-        textureIndex[index] = (int) (nextFloat() * textureCount);
+        textureIndex[index] = input.profile.chooseTexture(nextDouble());
         ParticleProfile.Texture texture = input.profile.textures().get(textureIndex[index]);
-        size[index] = texture.frameSize() * input.coordinateScale;
+        size[index] = texture.frameSize() * texture.scale() * input.coordinateScale;
         lifetime[index] = 8.0f + nextFloat() * 6.0f;
         swayAmplitude[index] = MIN_SWAY_AMPLITUDE
                 + nextFloat() * (MAX_SWAY_AMPLITUDE - MIN_SWAY_AMPLITUDE);
@@ -384,7 +391,9 @@ public final class BasicParticleEngine implements ParticleEngine {
         swayFrequency[index] = MIN_SWAY_FREQUENCY
                 + nextFloat() * (MAX_SWAY_FREQUENCY - MIN_SWAY_FREQUENCY);
         sweepResistance[index] = 0.0f;
-        animationTimer[index] = nextFloat() * texture.frameTime() / 20.0f;
+        animationTimer[index] = nextFloat() * texture.frameTime() / 20.0;
+        alternativeCooldownAge[index] = 0;
+        alternativeAnimation[index] = false;
         frameIndex[index] = (int) (nextFloat() * texture.frameCount());
         particleIds[index] = nextParticleId++;
         phase[index] = nextFloat() * 6.2831855f;
@@ -407,6 +416,8 @@ public final class BasicParticleEngine implements ParticleEngine {
         swayFrequency[to] = swayFrequency[from];
         swayFactor[to] = swayFactor[from];
         animationTimer[to] = animationTimer[from];
+        alternativeCooldownAge[to] = alternativeCooldownAge[from];
+        alternativeAnimation[to] = alternativeAnimation[from];
         textureIndex[to] = textureIndex[from];
         frameIndex[to] = frameIndex[from];
         grounded[to] = grounded[from];
@@ -431,7 +442,7 @@ public final class BasicParticleEngine implements ParticleEngine {
                 dragOffsetX = x[index] + size[index] * 0.5f - input.cursorX;
                 dragOffsetY = y[index] + size[index] * 0.5f - input.cursorY;
                 grounded[index] = false;
-                addSound(input.profile.captureSounds(), (byte) 1, particleIds[index], 0.7f);
+                addSound(input.profile.captureSounds(), (byte) 1, particleIds[index], 0.55f);
             }
         }
         previousMouseDown = input.mouseDown;
@@ -466,13 +477,62 @@ public final class BasicParticleEngine implements ParticleEngine {
 
     private void advanceAnimation(int index, float dt, ParticleProfile profile) {
         ParticleProfile.Texture texture = profile.textures().get(textureIndex[index]);
-        float frameDuration = texture.frameTime() / 20.0f;
-        animationTimer[index] += dt;
-        int framesAdvanced = (int) (animationTimer[index] / frameDuration);
-        if (framesAdvanced > 0) {
-            frameIndex[index] = (frameIndex[index] + framesAdvanced) % texture.frameCount();
-            animationTimer[index] -= framesAdvanced * frameDuration;
+        double frameDuration = texture.frameTime() / 20.0;
+        if (texture.alternativeAnimation() == null) {
+            double position = (frameIndex[index] * frameDuration + animationTimer[index] + dt)
+                    % (texture.frameCount() * frameDuration);
+            setAnimationPosition(index, texture, frameDuration, position);
+            alternativeCooldownAge[index] += dt;
+            return;
         }
+        double remaining = dt;
+        // Bound work for pathological profiles with extremely short frame durations.
+        int transitions = 0;
+        while (remaining > 0 && transitions < 64) {
+            double untilEnd = (texture.frameCount() - frameIndex[index]) * frameDuration - animationTimer[index];
+            if (remaining < untilEnd) {
+                setAnimationPosition(index, texture, frameDuration,
+                        frameIndex[index] * frameDuration + animationTimer[index] + remaining);
+                alternativeCooldownAge[index] += remaining;
+                return;
+            }
+            remaining -= Math.max(0, untilEnd);
+            alternativeCooldownAge[index] += Math.max(0, untilEnd);
+            frameIndex[index] = 0;
+            animationTimer[index] = 0;
+            if (alternativeAnimation[index]) {
+                alternativeAnimation[index] = false;
+                alternativeCooldownAge[index] = 0;
+            } else if (texture.alternativeAnimation() != null && alternativeMatches(index, texture.alternativeAnimation())) {
+                alternativeAnimation[index] = true;
+            }
+            transitions++;
+        }
+        if (remaining > 0) {
+            alternativeAnimation[index] = false;
+            alternativeCooldownAge[index] += remaining;
+            setAnimationPosition(index, texture, frameDuration,
+                    remaining % (texture.frameCount() * frameDuration));
+        }
+    }
+
+    private void setAnimationPosition(int index, ParticleProfile.Texture texture, double frameDuration, double position) {
+        frameIndex[index] = Math.min(texture.frameCount() - 1, (int) (position / frameDuration));
+        animationTimer[index] = position - frameIndex[index] * frameDuration;
+    }
+
+    private boolean alternativeMatches(int index, ParticleProfile.AlternativeAnimation animation) {
+        boolean both = animation.conditionType() == ParticleProfile.ConditionType.BOTH;
+        for (int i = 0; i < animation.conditions().size(); i++) {
+            ParticleProfile.AnimationCondition condition = animation.conditions().get(i);
+            boolean matches = switch (condition.type()) {
+                case CHANCE -> nextDouble() < condition.value();
+                case COOLDOWN -> alternativeCooldownAge[index] >= condition.value();
+            };
+            if (both && !matches) return false;
+            if (!both && matches) return true;
+        }
+        return both || animation.conditions().isEmpty();
     }
 
     private int findParticleToDrag(FrameInput input) {
@@ -556,6 +616,13 @@ public final class BasicParticleEngine implements ParticleEngine {
     private void updateSwayFactor(int index, float target, float dt) {
         float blend = 1.0f - (float) Math.exp(-dt / SWAY_TRANSITION_SECONDS);
         swayFactor[index] += (target - swayFactor[index]) * blend;
+    }
+
+    private double nextDouble() {
+        randomState ^= randomState << 13;
+        randomState ^= randomState >>> 7;
+        randomState ^= randomState << 17;
+        return (randomState >>> 11) * 0x1.0p-53;
     }
 
     private float nextFloat() {

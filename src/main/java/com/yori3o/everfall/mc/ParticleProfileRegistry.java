@@ -81,13 +81,13 @@ public final class ParticleProfileRegistry {
                     throw new IllegalStateException("Particle profile contains a null texture");
                 }
                 textures.add(new ParticleProfile.Texture(texture.id, texture.frameSize, texture.frameCount,
-                        texture.frameTime));
+                        texture.frameTime, texture.weight, texture.scale, alternative(texture)));
             }
         }
         ParticleProfile.Defaults defaults = new ParticleProfile.Defaults(data.defaults.maxParticles,
                 data.defaults.wind, data.defaults.gravity);
         return new ParticleProfile(data.id, List.copyOf(textures),
-                copySounds(data.sweepSounds), copySounds(data.captureSounds), defaults);
+                copySounds(data.sweepSounds), copySounds(data.captureSounds), defaults, data.flipWithWind);
     }
 
     private static void validate(ParticleProfile profile, String expectedId) {
@@ -97,14 +97,22 @@ public final class ParticleProfileRegistry {
         if (profile.textures().isEmpty()) {
             throw new IllegalStateException("Particle profile '" + expectedId + "' must define at least one texture");
         }
+        double totalWeight = 0;
         for (ParticleProfile.Texture texture : profile.textures()) {
             if (texture.id() == null || !texture.id().matches("[a-z0-9_.-]+:[a-z0-9_./-]+")
                     || texture.frameSize() <= 0 || texture.frameSize() > 256
                     || texture.frameCount() <= 0 || texture.frameCount() > 128
                     || texture.frameSize() * (long) texture.frameCount() > 32768
-                    || !Float.isFinite(texture.frameTime()) || texture.frameTime() <= 0.0f) {
+                    || !Float.isFinite(texture.frameTime()) || texture.frameTime() <= 0.0f
+                    || !Double.isFinite(texture.weight()) || texture.weight() < 0
+                    || !Float.isFinite(texture.scale()) || texture.scale() <= 0
+                    || !Float.isFinite(texture.frameSize() * texture.scale())) {
                 throw new IllegalStateException("Invalid texture definition in particle profile '" + expectedId + "'");
             }
+            totalWeight += texture.weight();
+        }
+        if (!Double.isFinite(totalWeight) || totalWeight <= 0) {
+            throw new IllegalStateException("Particle profile must have a positive total texture weight: " + expectedId);
         }
         validateSounds(profile.sweepSounds(), expectedId);
         validateSounds(profile.captureSounds(), expectedId);
@@ -114,6 +122,43 @@ public final class ParticleProfileRegistry {
                 || defaults.gravity() < 0.0f) {
             throw new IllegalStateException("Invalid recommended settings in particle profile '" + expectedId + "'");
         }
+    }
+
+    private static ParticleProfile.AlternativeAnimation alternative(TextureData texture) {
+        if (texture.alternativeAnimationId == null) return null;
+        if (!texture.alternativeAnimationId.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
+            throw new IllegalStateException("Invalid alternative animation texture id");
+        }
+        ParticleProfile.ConditionType combination;
+        try {
+            combination = ParticleProfile.ConditionType.valueOf(texture.conditionType.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            throw new IllegalStateException("conditionType must be 'both' or 'any'", exception);
+        }
+        List<ParticleProfile.AnimationCondition> conditions = new ArrayList<>();
+        if (texture.conditionsForAlternativeAnimation != null) {
+            for (AnimationConditionData condition : texture.conditionsForAlternativeAnimation) {
+                if (condition == null || condition.type == null || condition.value == null
+                        || !Double.isFinite(condition.value) || condition.value < 0) {
+                    throw new IllegalStateException("Invalid alternative animation condition");
+                }
+                ParticleProfile.AnimationConditionType type;
+                try {
+                    type = ParticleProfile.AnimationConditionType.valueOf(condition.type.toUpperCase(java.util.Locale.ROOT));
+                } catch (IllegalArgumentException exception) {
+                    throw new IllegalStateException("Animation condition must be 'chance' or 'cooldown'", exception);
+                }
+                if (type == ParticleProfile.AnimationConditionType.CHANCE && condition.value > 1) {
+                    throw new IllegalStateException("Animation chance must be between 0 and 1");
+                }
+                for (var existing : conditions) {
+                    if (existing.type() == type) throw new IllegalStateException("Duplicate animation condition: " + type);
+                }
+                conditions.add(new ParticleProfile.AnimationCondition(type, condition.value));
+            }
+        }
+        return new ParticleProfile.AlternativeAnimation(texture.alternativeAnimationId,
+                List.copyOf(conditions), combination);
     }
 
     private static void validateSounds(List<String> sounds, String profileId) {
@@ -140,6 +185,7 @@ public final class ParticleProfileRegistry {
 
     private static final class ProfileData {
         private String id;
+        private boolean flipWithWind;
         private List<TextureData> textures;
         private List<String> sweepSounds;
         private List<String> captureSounds;
@@ -151,6 +197,16 @@ public final class ParticleProfileRegistry {
         private int frameSize;
         private int frameCount = 1;
         private float frameTime = 1.0f;
+        private double weight = 1.0;
+        private float scale = 1.0f;
+        private String alternativeAnimationId;
+        private List<AnimationConditionData> conditionsForAlternativeAnimation;
+        private String conditionType = "both";
+    }
+
+    private static final class AnimationConditionData {
+        private String type;
+        private Double value;
     }
 
     private static final class DefaultsData {

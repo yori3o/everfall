@@ -23,8 +23,10 @@
   "yacl3.config.everfall:client_config.wind.desc": "Wind strength and direction: negative values blow left, positive values blow right.",
   "yacl3.config.everfall:client_config.gravity": "Gravity (px/s^2)",
   "yacl3.config.everfall:client_config.gravity.desc": "Higher values pull particles downward more strongly.",
-  "yacl3.config.enum.ParticleProfileId.autumn": "Autumn leaves",
-  "yacl3.config.enum.ParticleProfileId.winter": "Snowflakes",
+  "yacl3.config.enum.ParticleProfileId.spring": "Spring",
+  "yacl3.config.enum.ParticleProfileId.summer": "Summer",
+  "yacl3.config.enum.ParticleProfileId.autumn": "Autumn",
+  "yacl3.config.enum.ParticleProfileId.winter": "Winter",
   "sounds.everfall.autumn.sweep": "Leaves swept",
   "sounds.everfall.autumn.capture": "Leaf picked up",
   "sounds.everfall.winter.sweep": "Snowflakes swept",
@@ -34,7 +36,5 @@
   "yacl3.config.enum.PixelMode.display": "Display pixels",
   "yacl3.config.enum.PixelMode.gui": "GUI pixels",
   "yacl3.config.everfall:client_config.autoSeason": "Automatic seasonal profile",
-  "yacl3.config.everfall:client_config.autoSeason.desc": "Change the theme to match the time of year in your region.",
-  "yacl3.config.enum.ParticleProfileId.spring": "Spring",
-  "yacl3.config.enum.ParticleProfileId.summer": "Summer"
+  "yacl3.config.everfall:client_config.autoSeason.desc": "Change the theme to match the time of year in your region."
 }

@@ -27,12 +27,19 @@ public final class GuiDraw {
 
     public static void blit(Object target, String texture, float x, float y, float size, int frameY,
                             int frameSize, int frameCount, float alpha) {
+        blit(target, texture, x, y, size, frameY, frameSize, frameCount, alpha, false);
+    }
+
+    public static void blit(Object target, String texture, float x, float y, float size, int frameY,
+                            int frameSize, int frameCount, float alpha, boolean flipX) {
+        float sourceX = flipX ? frameSize : 0.0f;
+        int sourceWidth = flipX ? -frameSize : frameSize;
         GuiGraphics graphics = (GuiGraphics) target;
         graphics.setColor(1.0f, 1.0f, 1.0f, Math.max(0.0f, Math.min(alpha, 1.0f)));
         try {
             int drawSize = Math.max(1, Math.round(size));
-            graphics.blit(Ids.parse(texture), Math.round(x), Math.round(y), drawSize, drawSize, 0.0f, frameY,
-                    frameSize, frameSize, frameSize, frameSize * frameCount);
+            graphics.blit(Ids.parse(texture), Math.round(x), Math.round(y), drawSize, drawSize, sourceX, frameY,
+                    sourceWidth, frameSize, frameSize, frameSize * frameCount);
         } finally {
             graphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
         }

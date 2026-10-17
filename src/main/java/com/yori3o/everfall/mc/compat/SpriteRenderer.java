@@ -14,9 +14,11 @@ public final class SpriteRenderer {
                     continue;
                 }
                 ParticleProfile.Texture texture = profile.textures().get(sprites.textureIndex[i]);
-                GuiDraw.blit(graphics, texture.id(), sprites.x[i], sprites.y[i], sprites.width[i],
+                String textureId = sprites.alternativeAnimation[i] && texture.alternativeAnimation() != null
+                        ? texture.alternativeAnimation().id() : texture.id();
+                GuiDraw.blit(graphics, textureId, sprites.x[i], sprites.y[i], sprites.width[i],
                         sprites.frameIndex[i] * texture.frameSize(), texture.frameSize(), texture.frameCount(),
-                        sprites.alpha[i]);
+                        sprites.alpha[i], sprites.flipX);
             }
         } finally {
             GuiDraw.popDisplayPixelCoordinates(graphics);

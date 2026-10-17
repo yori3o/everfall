@@ -14,7 +14,9 @@ public final class SpriteBuffer {
     /** Negative indices represent untextured colored quads (e.g. procedural firefly glow). */
     public int[] textureIndex;
     public int[] frameIndex;
+    public boolean[] alternativeAnimation;
     public int count;
+    public boolean flipX;
 
     public SpriteBuffer(int capacity) {
         x = new float[capacity];
@@ -27,6 +29,7 @@ public final class SpriteBuffer {
         layer = new byte[capacity];
         textureIndex = new int[capacity];
         frameIndex = new int[capacity];
+        alternativeAnimation = new boolean[capacity];
     }
 
     public void ensureCapacity(int capacity) {
@@ -43,14 +46,21 @@ public final class SpriteBuffer {
         layer = Arrays.copyOf(layer, capacity);
         textureIndex = Arrays.copyOf(textureIndex, capacity);
         frameIndex = Arrays.copyOf(frameIndex, capacity);
+        alternativeAnimation = Arrays.copyOf(alternativeAnimation, capacity);
     }
 
     public void clear() {
         count = 0;
+        flipX = false;
     }
 
     public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color,
                        byte layer, int textureIndex, int frameIndex) {
+        return add(x, y, width, height, rotation, alpha, color, layer, textureIndex, frameIndex, false);
+    }
+
+    public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color,
+                       byte layer, int textureIndex, int frameIndex, boolean alternativeAnimation) {
         if (count == this.x.length) {
             return false;
         }
@@ -66,6 +76,7 @@ public final class SpriteBuffer {
         this.layer[index] = layer;
         this.textureIndex[index] = textureIndex;
         this.frameIndex[index] = frameIndex;
+        this.alternativeAnimation[index] = alternativeAnimation;
         return true;
     }
 }
