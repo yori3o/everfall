@@ -2,6 +2,8 @@
 
 Everfall is a client-side Minecraft mod scaffold for decorative, seasonal particles on GUI screens. The first implementation renders a small, configurable field of falling particles; airborne particles persist until they leave the screen, while settled particles can fade out and expire. Settled particles are cleared when screens change, and all particles are cleared when window dimensions change. Wind and gravity are configurable; particles fall from above and join from the upwind screen edge, cursor movement sweeps nearby particles, and click-dragging carries a particle with cursor inertia on release.
 
+Particle motion is simulated in display-pixel coordinates so changing the GUI scale does not change its screen-space speed or make movement jump by multiple display pixels. Particle size continues to follow the GUI scale. Stronger configured wind shifts more of the unchanged spawn rate from the top edge to the upwind side edge; at maximum wind, the target split is 40% top and 60% side.
+
 ## Supported builds
 
 | Minecraft | Fabric | NeoForge |

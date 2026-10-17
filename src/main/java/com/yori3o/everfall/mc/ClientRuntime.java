@@ -5,6 +5,7 @@ import com.yori3o.everfall.core.api.FrameOutput;
 import com.yori3o.everfall.core.engine.BasicParticleEngine;
 import com.yori3o.everfall.core.config.ModConfig;
 import com.yori3o.everfall.mc.compat.SpriteRenderer;
+import com.yori3o.everfall.mc.compat.SoundCuePlayer;
 import com.yori3o.everfall.mc.compat.WindowMode;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -20,6 +21,7 @@ public final class ClientRuntime {
     private static long previousFrameNanos;
     private static boolean mouseDown;
     private static int mouseButtonMask;
+    private static boolean screenChanged;
     private static boolean initialized;
     private static int previousScreenWidth = -1;
     private static int previousScreenHeight = -1;
@@ -62,6 +64,7 @@ public final class ClientRuntime {
         int windowHeight = window.getHeight();
         boolean fullscreen = WindowMode.isFullscreen();
         if (previousScreen != screen) {
+            screenChanged = true;
             ENGINE.clearGrounded();
             INPUT_COLLECTOR.resetScreenState();
             mouseButtonMask = 0;
@@ -100,8 +103,12 @@ public final class ClientRuntime {
         previousFrameNanos = now;
         FrameInput input = INPUT_COLLECTOR.collect(screen, mouseX, mouseY, deltaSeconds, mouseDown,
                 ModConfigBootstrap.config());
+        input.profile = ModConfigBootstrap.profile();
+        input.screenChanged = screenChanged;
+        screenChanged = false;
         INPUT_COLLECTOR.finishFrame();
         FrameOutput output = ENGINE.step(input);
-        RENDERER.draw(graphics, output.sprites);
+        RENDERER.draw(graphics, output.sprites, input.profile, input.coordinateScale);
+        SoundCuePlayer.play(output.sounds);
     }
 }

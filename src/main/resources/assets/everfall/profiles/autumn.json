@@ -1,0 +1,15 @@
+{
+  "id": "autumn",
+  "textures": [
+    { "id": "everfall:textures/particle/autumn/leaf_01", "frameSize": 8, "frameCount": 8, "frameTime": 3 },
+    { "id": "everfall:textures/particle/autumn/leaf_02", "frameSize": 16, "frameCount": 8, "frameTime": 3 }
+  ],
+  "sweepSounds": ["everfall:autumn.sweep"],
+  "captureSounds": ["everfall:autumn.capture"],
+  "defaults": {
+    "density": 1.0,
+    "maxParticles": 200,
+    "wind": -40.0,
+    "gravity": 50.0
+  }
+}

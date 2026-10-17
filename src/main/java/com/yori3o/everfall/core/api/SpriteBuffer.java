@@ -9,6 +9,8 @@ public final class SpriteBuffer {
     public final float[] alpha;
     public final int[] color;
     public final byte[] layer;
+    public final int[] textureIndex;
+    public final int[] frameIndex;
     public int count;
 
     public SpriteBuffer(int capacity) {
@@ -20,13 +22,16 @@ public final class SpriteBuffer {
         alpha = new float[capacity];
         color = new int[capacity];
         layer = new byte[capacity];
+        textureIndex = new int[capacity];
+        frameIndex = new int[capacity];
     }
 
     public void clear() {
         count = 0;
     }
 
-    public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color, byte layer) {
+    public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color,
+                       byte layer, int textureIndex, int frameIndex) {
         if (count == this.x.length) {
             return false;
         }
@@ -40,6 +45,8 @@ public final class SpriteBuffer {
         this.alpha[index] = alpha;
         this.color[index] = color;
         this.layer[index] = layer;
+        this.textureIndex[index] = textureIndex;
+        this.frameIndex[index] = frameIndex;
         return true;
     }
 }

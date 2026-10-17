@@ -1,7 +1,7 @@
 package com.yori3o.everfall.core.api;
 
 public final class SoundCueBuffer {
-    private final int[] soundIds;
+    private final String[] soundIds;
     private final float[] volumes;
     private final float[] pitches;
     private final float[] pans;
@@ -9,7 +9,7 @@ public final class SoundCueBuffer {
     private int count;
 
     public SoundCueBuffer(int capacity) {
-        soundIds = new int[capacity];
+        soundIds = new String[capacity];
         volumes = new float[capacity];
         pitches = new float[capacity];
         pans = new float[capacity];
@@ -20,7 +20,7 @@ public final class SoundCueBuffer {
         count = 0;
     }
 
-    public void add(int soundId, float volume, float pitch, float pan, byte kind) {
+    public void add(String soundId, float volume, float pitch, float pan, byte kind) {
         if (count == soundIds.length) {
             return;
         }
@@ -37,7 +37,7 @@ public final class SoundCueBuffer {
         return count;
     }
 
-    public int soundIdAt(int index) {
+    public String soundIdAt(int index) {
         return soundIds[index];
     }
 

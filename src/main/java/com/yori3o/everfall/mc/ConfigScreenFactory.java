@@ -12,7 +12,7 @@ public final class ConfigScreenFactory {
         return YetAnotherConfigLib.createBuilder()
                 .title(Component.translatable("everfall.config.title"))
                 .categories(ModConfigBootstrap.handler().generateGui().categories())
-                .save(() -> ModConfigBootstrap.handler().save())
+                .save(ModConfigBootstrap::save)
                 .build()
                 .generateScreen(parent);
     }

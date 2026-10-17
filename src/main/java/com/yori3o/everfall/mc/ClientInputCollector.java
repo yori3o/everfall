@@ -20,14 +20,22 @@ public final class ClientInputCollector {
     private final Set<Integer> widgetsSeenThisFrame = new HashSet<>();
     private float previousCursorX;
     private float previousCursorY;
+    private float coordinateScale = 1.0f;
     private boolean hasPreviousCursor;
     private int nextWidgetId = 1;
 
     public void beginFrame(Screen screen) {
         input.obstacles.clear();
         widgetsSeenThisFrame.clear();
+        if (screen.width > 0) {
+            int displayWidth = Minecraft.getInstance().getWindow().getWidth();
+            if (displayWidth > 0) {
+                coordinateScale = displayWidth / (float) screen.width;
+            }
+        }
         if (screen instanceof TitleScreen) {
-            input.obstacles.add(-1, screen.width / 2.0f - 128.0f, 30.0f, 256.0f, 44.0f);
+            input.obstacles.add(-1, (screen.width / 2.0f - 128.0f) * coordinateScale,
+                    30.0f * coordinateScale, 256.0f * coordinateScale, 44.0f * coordinateScale);
         }
     }
 
@@ -42,8 +50,8 @@ public final class ClientInputCollector {
             if (!widgetsSeenThisFrame.add(widgetId)) {
                 return;
             }
-            input.obstacles.add(widgetId, widget.getX(), widget.getY(),
-                    widget.getWidth(), widget.getHeight());
+            input.obstacles.add(widgetId, widget.getX() * coordinateScale, widget.getY() * coordinateScale,
+                    widget.getWidth() * coordinateScale, widget.getHeight() * coordinateScale);
         }
     }
 
@@ -65,27 +73,32 @@ public final class ClientInputCollector {
 
     public void resetCursorTracking() {
         hasPreviousCursor = false;
+        input.cursorPathValid = false;
         input.cursorVelocityX = 0.0f;
         input.cursorVelocityY = 0.0f;
     }
 
     public FrameInput collect(Screen screen, int mouseX, int mouseY, float deltaSeconds,
                               boolean mouseDown, ModConfig config) {
-        input.screenWidth = screen.width;
-        input.screenHeight = screen.height;
+        input.coordinateScale = coordinateScale;
+        input.screenWidth = Math.round(screen.width * coordinateScale);
+        input.screenHeight = Math.round(screen.height * coordinateScale);
         input.deltaSeconds = deltaSeconds;
-        input.cursorX = mouseX;
-        input.cursorY = mouseY;
+        input.cursorX = mouseX * coordinateScale;
+        input.cursorY = mouseY * coordinateScale;
         input.cursorOnScreen = mouseX >= 0 && mouseY >= 0 && mouseX < screen.width && mouseY < screen.height;
+        input.cursorPreviousX = previousCursorX;
+        input.cursorPreviousY = previousCursorY;
+        input.cursorPathValid = hasPreviousCursor && deltaSeconds > 0.0f;
         if (hasPreviousCursor && deltaSeconds > 0.0f) {
-            input.cursorVelocityX = clamp((mouseX - previousCursorX) / deltaSeconds, -2000.0f, 2000.0f);
-            input.cursorVelocityY = clamp((mouseY - previousCursorY) / deltaSeconds, -2000.0f, 2000.0f);
+            input.cursorVelocityX = clamp((input.cursorX - previousCursorX) / deltaSeconds, -2000.0f, 2000.0f);
+            input.cursorVelocityY = clamp((input.cursorY - previousCursorY) / deltaSeconds, -2000.0f, 2000.0f);
         } else {
             input.cursorVelocityX = 0.0f;
             input.cursorVelocityY = 0.0f;
         }
-        previousCursorX = mouseX;
-        previousCursorY = mouseY;
+        previousCursorX = input.cursorX;
+        previousCursorY = input.cursorY;
         hasPreviousCursor = true;
         input.mouseDown = mouseDown;
         input.inWorld = Minecraft.getInstance().level != null;
