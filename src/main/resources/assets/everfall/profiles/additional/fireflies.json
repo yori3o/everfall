@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "fireflies",
+  "name": "Fireflies",
+  "motion": "fireflies",
+  "maxParticles": 24,
+  "speed": 10.0,
+  "size": 1.0,
+  "color": 15335306,
+  "conditions": {
+    "profiles": ["spring", "summer"],
+    "startHour": 22,
+    "endHour": 4
+  }
+}

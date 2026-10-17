@@ -1,14 +1,13 @@
 {
   "id": "winter",
   "textures": [
-    { "id": "everfall:textures/particle/winter/snowflake_01", "frameSize": 8, "frameCount": 8, "frameTime": 3 }
+    { "id": "everfall:textures/particle/winter/snowflake_01.png", "frameSize": 8}
   ],
   "sweepSounds": ["everfall:winter.sweep"],
   "captureSounds": ["everfall:winter.capture"],
   "defaults": {
-    "density": 1.0,
-    "maxParticles": 200,
-    "wind": -40.0,
-    "gravity": 50.0
+    "maxParticles": 400,
+    "wind": 20.0,
+    "gravity": 30.0
   }
 }

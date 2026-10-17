@@ -2,6 +2,7 @@ package com.yori3o.everfall.mc;
 
 import com.yori3o.everfall.core.api.FrameInput;
 import com.yori3o.everfall.core.config.ModConfig;
+import com.yori3o.everfall.core.config.PixelMode;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.components.AbstractStringWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -24,10 +25,11 @@ public final class ClientInputCollector {
     private boolean hasPreviousCursor;
     private int nextWidgetId = 1;
 
-    public void beginFrame(Screen screen) {
+    public void beginFrame(Screen screen, PixelMode pixelMode) {
         input.obstacles.clear();
         widgetsSeenThisFrame.clear();
-        if (screen.width > 0) {
+        coordinateScale = 1.0f;
+        if (pixelMode != PixelMode.GUI && screen.width > 0) {
             int displayWidth = Minecraft.getInstance().getWindow().getWidth();
             if (displayWidth > 0) {
                 coordinateScale = displayWidth / (float) screen.width;

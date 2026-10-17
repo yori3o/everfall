@@ -1,7 +1,7 @@
 # Everfall — Project Context
 
 > **Audience:** coding agents (and the human owner). Read this whole file before touching code.
-> **Status:** pre-implementation. Everything below is the *plan and the rules*, not a description of existing code.
+> **Status:** early implementation. The architecture and roadmap below describe the target. Current code includes the particle engine, four seasonal profiles, interaction sounds, and basic YACL settings. Explicit current decisions below supersede the original plan.
 > **Working title:** `Everfall`. Placeholder mod id: `everfall`. Package: `com.yori3o.everfall`.
 > **License: MIT** (code and built-in assets, unless a file says otherwise).
 > There is **no deadline**. The mod is released only when it is complete and polished.
@@ -145,8 +145,8 @@ loader event(screen, mouseX, mouseY, partialTick)
 ```
 
 - **One engine instance for the whole session**, not one per screen: leaves keep falling while the player moves title → options → back. When the screen changes, obstacles change; resting particles re-evaluate and fall if their support is gone.
-- **Coordinates:** everything in **GUI-scaled pixels**, origin top-left, +y down. These match widget bounds and mouse coordinates delivered to `Screen`. Do not mix in framebuffer pixels; conversions (if ever needed) are done by `WindowInput`.
-- **Time:** the adapter measures real frame `dt` (seconds, clamped to e.g. ≤ 0.1 s). The core internally uses a **fixed timestep** (default 1/60 s) with an accumulator and a max-substeps cap, so behavior is frame-rate independent.
+- **Coordinates (current decision):** simulation defaults to **display pixels**, origin top-left, +y down, for smoother movement independent of GUI scale. The adapter converts cursor/widget coordinates into display pixels and rendering back into GUI coordinates; sprite sizes still follow GUI scale. `pixelMode = DISPLAY | GUI` in YACL/config selects display pixels (default) or GUI pixels for motion, input, obstacles, and rendering. GUI mode follows GUI scaling; sprite size remains unchanged on screen. Switching mode resets particles and cursor tracking to avoid mixing coordinate systems.
+- **Time (current decision):** input, physics, and output update together on **every rendered frame**, using real frame `dt` in seconds (clamped to ≤ 0.1 s to avoid jumps after a stall). There is no fixed 60 Hz simulation. Actual cadence follows Minecraft rendering/FPS and VSync settings; cursor sweep impulses scale with `dt`.
 
 ### 5.4 Core contract (sketch — refine, but keep the shape)
 
@@ -205,9 +205,14 @@ Rendering and audio *playback* are **not** core ports. Core only emits data (`Sp
 
 ### 6.1 Particle engine (core)
 
-- **Storage:** structure-of-arrays, fixed capacity from config (hard cap, e.g. 1000). Free-list pool. No objects per particle.
+**Current additional-profile system:** `AdditionalParticleSystem` composes independent feature engines with the main `BasicParticleEngine`. Each additional JSON profile has its own motion parameters, population weight, and season/hour/annual-date conditions. Multiple selected IDs in `additionalProfiles` may run simultaneously. YACL Features contains one independent switch per definition. Built-in fireflies are selected by default and active only in spring/summer during local `[22:00,04:00)`; clock sampling is cached for one second, and animation/motion update each frame. The wandering, pulsing procedural firefly glow stays entirely in the lower third. Feature particles do not land, sweep, capture, or produce audio. One configured `maxParticles` budget is shared between main and active additional layers, by their profile count weights; disabled/unmatched layers reserve nothing. `FrameInput.particleLimit` carries the main layer's allocation within this global limit. Definitions support config-directory overrides and new profiles with soft failure. See `docs/ADDITIONAL_PROFILES.md` for the complete current format and holiday examples. Resource-pack discovery/reload remains future work.
+
+
+- **Storage (current decision):** structure-of-arrays; simulation and output buffers grow when configured `maxParticles` requires more capacity. There is no additional engine/render cap. Lowering the config limit immediately trims the live count. No objects per particle; no allocation at unchanged capacity.
 - **Particle state machine:** `FALLING → RESTING (on a rect) → (SWEPT | MELTING/FADING | FALLING again)`; plus type-specific states (e.g. insects: `HOVERING/FLYING`, frost: `GROWING → MELTING`).
+- **Animation (current decision):** sprite frame and fractional animation time pause while grounded or mouse-dragged; animation resumes from that exact point when airborne again.
 - **Motion model per effect (data-driven):** fall speed range, wind (global + per-particle gust noise), sway (amplitude/frequency), rotation speed, size/alpha ranges, lifetime, spawn rate and spawn area, depth factor (size/alpha/speed scaling to fake parallax).
+- **Current spawn-rate decision:** `maxParticles` is the single particle-count option, controlling both the hard live limit and `spawnRate = maxParticles * 0.03` per second. Initial fill is 30% of that count. There is no separate density field in config or profile defaults; legacy density fields are ignored. A count of 200 produces 6 particles/s; 400 produces 12 particles/s. Zero clears particles and disables spawning.
 - **Spawning:** accumulator-based spawn rate, scaled by season intensity × performance preset × config density multiplier.
 - **Cull:** particles leaving the screen are recycled immediately.
 
@@ -221,6 +226,9 @@ Rendering and audio *playback* are **not** core ports. Core only emits data (`Sp
 - Keep all tunables (mass, bounce, friction, sweep strength) in styles/config, not hardcoded.
 
 ### 6.3 Season resolution (core)
+
+**Current implementation:** `autoSeason` defaults to true; the selected season is mirrored into `profile`; its YACL selector is visibly disabled while auto mode is on. Toggling auto mode updates the selector immediately without committing unsaved changes. Disabling auto mode unlocks manual `profile`. Spring and summer initially copy winter's assets and defaults. Meteorological seasons are reversed for the southern hemisphere. Bundled public-domain IANA `zone.tab` + `backward` supply geographic time-zone/country hemisphere hints. The time zone contributes weight 8, each distinct system-locale country (default/FORMAT/DISPLAY) contributes 2, and the Minecraft language's country contributes 1. Mixed-hemisphere countries and fictional Pirate/upside-down locales supply no vote. Ties/no evidence fall back to northern seasons. These scores are heuristic evidence, not probabilities or geolocation. Startup and changed inputs are logged with date, zone, source hints, scores, hemisphere, fallback, auto/manual mode, and selected profile. A cached check once per second catches local date/zone/locale changes; language/config changes apply immediately. Automatic selection preserves user physics settings; manual profile changes retain the existing recommended-default behavior. No network access occurs at runtime. Climate/holiday selection and smooth transitions below remain planned.
+
 
 Inputs: `Environment` (date, zone, locale) + config overrides. Output: a **scene selection** = chosen style id + a set of effect intensities (e.g. `leaf: 0.8, rain: 0.2`).
 
@@ -277,6 +285,9 @@ Units: GUI px, px/s, seconds, degrees.
 
 ### 6.5 Audio (core decides, adapter plays)
 
+**Current master-volume setting:** `masterVolume` is a YACL slider in General, 0-100 percent, default 100. It multiplies every sweep/capture cue at playback, retaining their relative state volumes. Zero skips playback without consuming sweep slots or cooldowns. This setting is independent of seasonal profile defaults.
+
+- **Current interaction-audio decision:** sweep/capture cues carry a session-unique particle ID. Playback limits apply **only to sweep**: one active sweep sound per particle and at most **six** active sweep sounds overall. New sweep cues are skipped while the particle or all six slots are busy. Capture sounds bypass the limiter entirely and do not occupy slots. Any sweep playback starts independently randomized cooldowns with uniform +/-50% spread: global sweep 150-450 ms (300 ms base), and per resolved audio file 600-1800 ms (1.2 s base), measured with monotonic time. Durations are sampled once after playback and are not rerolled or extended by ignored requests; duplicate cues are dropped, never queued. The random variant is resolved once and retained for playback. Sweep volume is 0.4 for grounded particles and 0.7 for airborne particles; capture volume is 0.7, measured before the interaction changes their state. Sweep audio uses the same cursor-speed gate as physics (currently >160 motion pixels/s); speed gates playback rather than scaling volume. Slots are released according to Minecraft sound playback state, rather than a guessed clip duration.
 - `AudioDirector` (core) emits `SoundCue { soundId, volume, pitch, pan, kind }` and loop-control cues. It handles rate limiting (max N one-shots/sec, per-sound cooldown), randomization of pitch/volume, and ambient layer crossfades when the scene changes.
 - One-shots: leaf lands, sweep swish, snow soft tick, raindrop patter, easter-egg sounds. Ambient loops: wind, rain bed, insects, etc.
 - Volume model: **master mod volume**, per-category sliders (ambient / interaction / easter eggs), and per-screen mute. Final volume also respects Minecraft's own volume settings — **decision to confirm when implemented:** which Minecraft sound category the mod's sounds use, and whether sounds can play on screens where the sound engine/menu music is paused or not yet ready.

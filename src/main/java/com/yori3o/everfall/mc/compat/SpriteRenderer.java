@@ -8,6 +8,11 @@ public final class SpriteRenderer {
         GuiDraw.pushDisplayPixelCoordinates(graphics, coordinateScale);
         try {
             for (int i = 0; i < sprites.count; i++) {
+                if (sprites.textureIndex[i] < 0) {
+                    GuiDraw.fill(graphics, sprites.x[i], sprites.y[i], sprites.width[i], sprites.height[i],
+                            sprites.alpha[i], sprites.color[i]);
+                    continue;
+                }
                 ParticleProfile.Texture texture = profile.textures().get(sprites.textureIndex[i]);
                 GuiDraw.blit(graphics, texture.id(), sprites.x[i], sprites.y[i], sprites.width[i],
                         sprites.frameIndex[i] * texture.frameSize(), texture.frameSize(), texture.frameCount(),

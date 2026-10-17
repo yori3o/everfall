@@ -1,16 +1,19 @@
 package com.yori3o.everfall.core.api;
 
+import java.util.Arrays;
+
 public final class SpriteBuffer {
-    public final float[] x;
-    public final float[] y;
-    public final float[] width;
-    public final float[] height;
-    public final float[] rotation;
-    public final float[] alpha;
-    public final int[] color;
-    public final byte[] layer;
-    public final int[] textureIndex;
-    public final int[] frameIndex;
+    public float[] x;
+    public float[] y;
+    public float[] width;
+    public float[] height;
+    public float[] rotation;
+    public float[] alpha;
+    public int[] color;
+    public byte[] layer;
+    /** Negative indices represent untextured colored quads (e.g. procedural firefly glow). */
+    public int[] textureIndex;
+    public int[] frameIndex;
     public int count;
 
     public SpriteBuffer(int capacity) {
@@ -24,6 +27,22 @@ public final class SpriteBuffer {
         layer = new byte[capacity];
         textureIndex = new int[capacity];
         frameIndex = new int[capacity];
+    }
+
+    public void ensureCapacity(int capacity) {
+        if (capacity <= x.length) {
+            return;
+        }
+        x = Arrays.copyOf(x, capacity);
+        y = Arrays.copyOf(y, capacity);
+        width = Arrays.copyOf(width, capacity);
+        height = Arrays.copyOf(height, capacity);
+        rotation = Arrays.copyOf(rotation, capacity);
+        alpha = Arrays.copyOf(alpha, capacity);
+        color = Arrays.copyOf(color, capacity);
+        layer = Arrays.copyOf(layer, capacity);
+        textureIndex = Arrays.copyOf(textureIndex, capacity);
+        frameIndex = Arrays.copyOf(frameIndex, capacity);
     }
 
     public void clear() {

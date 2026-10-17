@@ -12,6 +12,6 @@ public record ParticleProfile(
     public record Texture(String id, int frameSize, int frameCount, float frameTime) {
     }
 
-    public record Defaults(float density, int maxParticles, float wind, float gravity) {
+    public record Defaults(int maxParticles, float wind, float gravity) {
     }
 }

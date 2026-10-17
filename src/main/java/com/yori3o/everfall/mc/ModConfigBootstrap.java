@@ -1,6 +1,7 @@
 package com.yori3o.everfall.mc;
 
 import com.yori3o.everfall.core.config.ModConfig;
+import com.yori3o.everfall.core.config.PixelMode;
 import com.yori3o.everfall.core.config.ParticleProfileId;
 import com.yori3o.everfall.core.profile.ParticleProfile;
 import com.yori3o.everfall.mc.compat.Ids;
@@ -20,6 +21,7 @@ public final class ModConfigBootstrap {
             return;
         }
         ParticleProfileRegistry.load(configDirectory);
+        AdditionalProfileRegistry.load(configDirectory);
         handler = ConfigClassHandler.createBuilder(ModConfig.class)
                 .id(Ids.create("everfall", "client_config"))
                 .serializer(config -> GsonConfigSerializerBuilder.create(config)
@@ -28,9 +30,16 @@ public final class ModConfigBootstrap {
                         .build())
                 .build();
         handler.load();
+        if (handler.instance().additionalProfiles == null) {
+            handler.instance().additionalProfiles = new java.util.ArrayList<>(java.util.List.of("fireflies"));
+        }
         if (handler.instance().profile == null) {
             handler.instance().profile = ParticleProfileId.AUTUMN;
         }
+        if (handler.instance().pixelMode == null) {
+            handler.instance().pixelMode = PixelMode.DISPLAY;
+        }
+        SeasonalProfileSelector.select(handler.instance());
         savedProfile = handler.instance().profile;
     }
 
@@ -52,23 +61,25 @@ public final class ModConfigBootstrap {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
-        return ParticleProfileRegistry.get(handler.instance().profile);
+        ModConfig config = handler.instance();
+        ParticleProfileId selected = SeasonalProfileSelector.select(config);
+        if (config.autoSeason) savedProfile = selected;
+        return ParticleProfileRegistry.get(selected);
     }
 
     public static void save() {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
-        handler.save();
         ModConfig config = handler.instance();
-        if (config.profile != savedProfile) {
+        SeasonalProfileSelector.select(config);
+        if (!config.autoSeason && config.profile != savedProfile) {
             ParticleProfile.Defaults defaults = ParticleProfileRegistry.get(config.profile).defaults();
-            config.density = defaults.density();
             config.maxParticles = defaults.maxParticles();
             config.wind = defaults.wind();
             config.gravity = defaults.gravity();
-            savedProfile = config.profile;
-            handler.save();
         }
+        savedProfile = config.profile;
+        handler.save();
     }
 }

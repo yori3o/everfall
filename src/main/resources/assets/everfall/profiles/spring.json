@@ -1,0 +1,13 @@
+{
+  "id": "spring",
+  "textures": [
+    { "id": "everfall:textures/particle/winter/snowflake_01.png", "frameSize": 8}
+  ],
+  "sweepSounds": ["everfall:winter.sweep"],
+  "captureSounds": ["everfall:winter.capture"],
+  "defaults": {
+    "maxParticles": 400,
+    "wind": 20.0,
+    "gravity": 30.0
+  }
+}

@@ -30,9 +30,9 @@ public final class GuiDraw {
         GuiGraphics graphics = (GuiGraphics) target;
         graphics.setColor(1.0f, 1.0f, 1.0f, Math.max(0.0f, Math.min(alpha, 1.0f)));
         try {
-            graphics.blit(Ids.parse(texture), Math.round(x), Math.round(y), 0, 0.0f, frameY,
-                    Math.max(1, Math.round(size)), Math.max(1, Math.round(size)), frameSize,
-                    frameSize * frameCount);
+            int drawSize = Math.max(1, Math.round(size));
+            graphics.blit(Ids.parse(texture), Math.round(x), Math.round(y), drawSize, drawSize, 0.0f, frameY,
+                    frameSize, frameSize, frameSize, frameSize * frameCount);
         } finally {
             graphics.setColor(1.0f, 1.0f, 1.0f, 1.0f);
         }

@@ -18,7 +18,7 @@ import java.util.Map;
 public final class ParticleProfileRegistry {
     private static final Gson GSON = new Gson();
     private static final Map<ParticleProfileId, ParticleProfile> PROFILES = new EnumMap<>(ParticleProfileId.class);
-    private static final String[] BUILTIN_IDS = {"autumn", "winter"};
+    private static final String[] BUILTIN_IDS = {"spring", "summer", "autumn", "winter"};
 
     private ParticleProfileRegistry() {
     }
@@ -38,7 +38,7 @@ public final class ParticleProfileRegistry {
                     ? loadFile(override)
                     : loadAsset(id);
             validate(profile, id);
-            PROFILES.put(ParticleProfileId.valueOf(id.toUpperCase()), profile);
+            PROFILES.put(ParticleProfileId.valueOf(id.toUpperCase(java.util.Locale.ROOT)), profile);
         }
     }
 
@@ -84,8 +84,8 @@ public final class ParticleProfileRegistry {
                         texture.frameTime));
             }
         }
-        ParticleProfile.Defaults defaults = new ParticleProfile.Defaults(data.defaults.density,
-                data.defaults.maxParticles, data.defaults.wind, data.defaults.gravity);
+        ParticleProfile.Defaults defaults = new ParticleProfile.Defaults(data.defaults.maxParticles,
+                data.defaults.wind, data.defaults.gravity);
         return new ParticleProfile(data.id, List.copyOf(textures),
                 copySounds(data.sweepSounds), copySounds(data.captureSounds), defaults);
     }
@@ -109,8 +109,7 @@ public final class ParticleProfileRegistry {
         validateSounds(profile.sweepSounds(), expectedId);
         validateSounds(profile.captureSounds(), expectedId);
         ParticleProfile.Defaults defaults = profile.defaults();
-        if (!Float.isFinite(defaults.density()) || defaults.density() < 0.0f
-                || defaults.maxParticles() < 0 || defaults.maxParticles() > 400
+        if (defaults.maxParticles() < 0
                 || !Float.isFinite(defaults.wind()) || !Float.isFinite(defaults.gravity())
                 || defaults.gravity() < 0.0f) {
             throw new IllegalStateException("Invalid recommended settings in particle profile '" + expectedId + "'");
@@ -155,7 +154,6 @@ public final class ParticleProfileRegistry {
     }
 
     private static final class DefaultsData {
-        private float density;
         private int maxParticles;
         private float wind;
         private float gravity;

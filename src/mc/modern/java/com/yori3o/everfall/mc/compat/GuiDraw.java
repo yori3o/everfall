@@ -29,8 +29,9 @@ public final class GuiDraw {
     public static void blit(Object target, String texture, float x, float y, float size, int frameY,
                             int frameSize, int frameCount, float alpha) {
         int tint = ((int) (Math.max(0.0f, Math.min(alpha, 1.0f)) * 255.0f) << 24) | 0x00ffffff;
+        int drawSize = Math.max(1, Math.round(size));
         ((GuiGraphicsExtractor) target).blit(RenderPipelines.GUI_TEXTURED, Ids.parse(texture),
-                Math.round(x), Math.round(y), 0.0f, frameY, Math.max(1, Math.round(size)),
-                Math.max(1, Math.round(size)), frameSize, frameSize * frameCount, tint);
+                Math.round(x), Math.round(y), 0.0f, frameY, drawSize, drawSize, frameSize, frameSize,
+                frameSize, frameSize * frameCount, tint);
     }
 }

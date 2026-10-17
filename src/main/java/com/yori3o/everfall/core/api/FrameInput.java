@@ -22,4 +22,6 @@ public final class FrameInput {
     public final ObstacleBuffer obstacles = new ObstacleBuffer(256);
     public ModConfig config;
     public ParticleProfile profile;
+    /** Scene allocation within the configured global limit; -1 means no additional layers. */
+    public int particleLimit = -1;
 }
