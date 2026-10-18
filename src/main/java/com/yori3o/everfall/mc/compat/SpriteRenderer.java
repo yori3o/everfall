@@ -16,8 +16,10 @@ public final class SpriteRenderer {
                 ParticleProfile.Texture texture = profile.textures().get(sprites.textureIndex[i]);
                 String textureId = sprites.alternativeAnimation[i] && texture.alternativeAnimation() != null
                         ? texture.alternativeAnimation().id() : texture.id();
-                GuiDraw.blit(graphics, textureId, sprites.x[i], sprites.y[i], sprites.width[i],
-                        sprites.frameIndex[i] * texture.frameSize(), texture.frameSize(), texture.frameCount(),
+                GuiDraw.blit(graphics, textureId, sprites.x[i], sprites.y[i], sprites.width[i], sprites.height[i],
+                        sprites.frameIndex[i] * texture.frameHeight(sprites.alternativeAnimation[i]),
+                        texture.frameWidth(sprites.alternativeAnimation[i]), texture.frameHeight(sprites.alternativeAnimation[i]),
+                        texture.frameCount(),
                         sprites.alpha[i], sprites.flipX);
             }
         } finally {

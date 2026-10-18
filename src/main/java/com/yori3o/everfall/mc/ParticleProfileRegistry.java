@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.yori3o.everfall.core.config.ParticleProfileId;
 import com.yori3o.everfall.core.profile.ParticleProfile;
+import com.yori3o.everfall.mc.compat.TextureMetadata;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -11,66 +14,83 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 public final class ParticleProfileRegistry {
     private static final Gson GSON = new Gson();
-    private static final Map<ParticleProfileId, ParticleProfile> PROFILES = new EnumMap<>(ParticleProfileId.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger("everfall");
+    private static final Map<String, ParticleProfile> PROFILES = new LinkedHashMap<>();
     private static final String[] BUILTIN_IDS = {"spring", "summer", "autumn", "winter"};
 
     private ParticleProfileRegistry() {
     }
 
     public static void load(Path configDirectory) {
+        load(configDirectory, null);
+    }
+
+    public static void load(Path configDirectory, ResourceManager resources) {
         PROFILES.clear();
-        Path overrides = configDirectory.resolve("everfall").resolve("profiles");
-        try {
-            Files.createDirectories(overrides);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not create particle profile override directory: " + overrides,
-                    exception);
-        }
         for (String id : BUILTIN_IDS) {
-            Path override = overrides.resolve(id + ".json");
-            ParticleProfile profile = Files.isRegularFile(override)
-                    ? loadFile(override)
-                    : loadAsset(id);
-            validate(profile, id);
-            PROFILES.put(ParticleProfileId.valueOf(id.toUpperCase(java.util.Locale.ROOT)), profile);
+            try {
+                ParticleProfile profile = loadAsset(id, resources);
+                validate(profile, id);
+                PROFILES.put(id, profile);
+            } catch (RuntimeException exception) {
+                LOGGER.warn("[Everfall] Skipping built-in particle profile {}", id, exception);
+            }
         }
+        ProfileFiles.load(configDirectory, resources, false, (id, reader) -> {
+            ParticleProfile profile = convert(GSON.fromJson(reader, ProfileData.class), resources);
+            validate(profile, id);
+            PROFILES.put(id, profile);
+        });
+        // Seasonal selection remains usable even when every definition of a season is broken.
+        for (String id : BUILTIN_IDS) PROFILES.putIfAbsent(id, empty(id));
+    }
+
+    public static List<String> ids() {
+        return PROFILES.values().stream().filter(p -> !p.textures().isEmpty()).map(ParticleProfile::id).toList();
+    }
+
+    public static java.util.Collection<ParticleProfile> profiles() {
+        return List.copyOf(PROFILES.values());
     }
 
     public static ParticleProfile get(ParticleProfileId id) {
-        ParticleProfile profile = PROFILES.get(id);
-        if (profile == null) {
-            throw new IllegalStateException("Particle profile has not been loaded: " + id);
-        }
-        return profile;
+        return get(id.name().toLowerCase(java.util.Locale.ROOT));
     }
 
-    private static ParticleProfile loadAsset(String id) {
+    public static ParticleProfile get(String id) {
+        return PROFILES.getOrDefault(id, EMPTY_PROFILE);
+    }
+
+    private static ParticleProfile empty(String id) {
+        return new ParticleProfile(id, List.of(), List.of(), List.of(), new ParticleProfile.Defaults(0, 0, 0));
+    }
+
+    private static final ParticleProfile EMPTY_PROFILE = empty("unavailable");
+
+    private static ParticleProfile loadAsset(String id, ResourceManager resources) {
         String resource = "/assets/everfall/profiles/" + id + ".json";
         try (InputStream stream = ParticleProfileRegistry.class.getResourceAsStream(resource)) {
             if (stream == null) {
                 throw new IllegalStateException("Missing built-in particle profile: " + resource);
             }
-            return convert(GSON.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), ProfileData.class));
+            return convert(GSON.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), ProfileData.class), resources);
         } catch (IOException | JsonParseException exception) {
             throw new IllegalStateException("Could not load built-in particle profile: " + resource, exception);
         }
     }
 
-    private static ParticleProfile loadFile(Path path) {
-        try (InputStream stream = Files.newInputStream(path)) {
-            return convert(GSON.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), ProfileData.class));
-        } catch (IOException | JsonParseException exception) {
-            throw new IllegalStateException("Could not load particle profile override: " + path, exception);
-        }
+    private static ParticleProfile convert(ProfileData data) {
+        return convert(data, null);
     }
 
-    private static ParticleProfile convert(ProfileData data) {
+    private static ParticleProfile convert(ProfileData data, ResourceManager resources) {
         if (data == null || data.defaults == null) {
             throw new IllegalStateException("Particle profile or its defaults are missing");
         }
@@ -80,14 +100,21 @@ public final class ParticleProfileRegistry {
                 if (texture == null) {
                     throw new IllegalStateException("Particle profile contains a null texture");
                 }
-                textures.add(new ParticleProfile.Texture(texture.id, texture.frameSize, texture.frameCount,
-                        texture.frameTime, texture.weight, texture.scale, alternative(texture)));
+                try {
+                    TextureMetadata.Dimensions dimensions = frameDimensions(texture.id, texture.frameCount, resources);
+                    textures.add(new ParticleProfile.Texture(texture.id, dimensions.width(), dimensions.height(),
+                            texture.frameCount, texture.frameTime, texture.weight, texture.scale, alternative(texture, resources)));
+                } catch (IOException exception) {
+                    LOGGER.warn("[Everfall] Skipping particle texture {}: {}", texture.id, exception.getMessage());
+                }
             }
         }
         ParticleProfile.Defaults defaults = new ParticleProfile.Defaults(data.defaults.maxParticles,
-                data.defaults.wind, data.defaults.gravity);
+                data.defaults.wind, data.defaults.gravity,
+                data.defaults.backgroundParticles, data.defaults.interactionEnabled);
         return new ParticleProfile(data.id, List.copyOf(textures),
-                copySounds(data.sweepSounds), copySounds(data.captureSounds), defaults, data.flipWithWind);
+                copySounds(data.sweepSounds), copySounds(data.captureSounds), defaults, data.flipWithWind,
+                copySounds(data.shortSweepSounds));
     }
 
     private static void validate(ParticleProfile profile, String expectedId) {
@@ -100,13 +127,15 @@ public final class ParticleProfileRegistry {
         double totalWeight = 0;
         for (ParticleProfile.Texture texture : profile.textures()) {
             if (texture.id() == null || !texture.id().matches("[a-z0-9_.-]+:[a-z0-9_./-]+")
-                    || texture.frameSize() <= 0 || texture.frameSize() > 256
+                    || texture.frameWidth() <= 0 || texture.frameHeight() <= 0
                     || texture.frameCount() <= 0 || texture.frameCount() > 128
-                    || texture.frameSize() * (long) texture.frameCount() > 32768
                     || !Float.isFinite(texture.frameTime()) || texture.frameTime() <= 0.0f
                     || !Double.isFinite(texture.weight()) || texture.weight() < 0
                     || !Float.isFinite(texture.scale()) || texture.scale() <= 0
-                    || !Float.isFinite(texture.frameSize() * texture.scale())) {
+                    || !Float.isFinite(texture.frameWidth() * texture.scale())
+                    || !Float.isFinite(texture.frameHeight() * texture.scale())
+                    || !Float.isFinite(texture.frameWidth(true) * texture.scale())
+                    || !Float.isFinite(texture.frameHeight(true) * texture.scale())) {
                 throw new IllegalStateException("Invalid texture definition in particle profile '" + expectedId + "'");
             }
             totalWeight += texture.weight();
@@ -115,16 +144,16 @@ public final class ParticleProfileRegistry {
             throw new IllegalStateException("Particle profile must have a positive total texture weight: " + expectedId);
         }
         validateSounds(profile.sweepSounds(), expectedId);
+        validateSounds(profile.shortSweepSounds(), expectedId);
         validateSounds(profile.captureSounds(), expectedId);
         ParticleProfile.Defaults defaults = profile.defaults();
         if (defaults.maxParticles() < 0
-                || !Float.isFinite(defaults.wind()) || !Float.isFinite(defaults.gravity())
-                || defaults.gravity() < 0.0f) {
+                || !Float.isFinite(defaults.wind()) || !Float.isFinite(defaults.gravity())) {
             throw new IllegalStateException("Invalid recommended settings in particle profile '" + expectedId + "'");
         }
     }
 
-    private static ParticleProfile.AlternativeAnimation alternative(TextureData texture) {
+    private static ParticleProfile.AlternativeAnimation alternative(TextureData texture, ResourceManager resources) {
         if (texture.alternativeAnimationId == null) return null;
         if (!texture.alternativeAnimationId.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) {
             throw new IllegalStateException("Invalid alternative animation texture id");
@@ -157,8 +186,26 @@ public final class ParticleProfileRegistry {
                 conditions.add(new ParticleProfile.AnimationCondition(type, condition.value));
             }
         }
-        return new ParticleProfile.AlternativeAnimation(texture.alternativeAnimationId,
-                List.copyOf(conditions), combination);
+        try {
+            TextureMetadata.Dimensions dimensions = frameDimensions(texture.alternativeAnimationId, texture.frameCount, resources);
+            return new ParticleProfile.AlternativeAnimation(texture.alternativeAnimationId,
+                    List.copyOf(conditions), combination, dimensions.width(), dimensions.height());
+        } catch (IOException exception) {
+            LOGGER.warn("[Everfall] Skipping alternative animation {}: {}", texture.alternativeAnimationId,
+                    exception.getMessage());
+            return null;
+        }
+    }
+
+    private static TextureMetadata.Dimensions frameDimensions(String id, int frameCount, ResourceManager resources) throws IOException {
+        if (id == null || !id.matches("[a-z0-9_.-]+:[a-z0-9_./-]+") || frameCount <= 0 || frameCount > 128) {
+            throw new IOException("Invalid texture id or frame count");
+        }
+        TextureMetadata.Dimensions image = resources == null ? TextureMetadata.read(id) : TextureMetadata.read(id, resources);
+        if (image.height() % frameCount != 0) {
+            throw new IOException("Image height " + image.height() + " is not divisible by frameCount " + frameCount);
+        }
+        return new TextureMetadata.Dimensions(image.width(), image.height() / frameCount);
     }
 
     private static void validateSounds(List<String> sounds, String profileId) {
@@ -188,13 +235,13 @@ public final class ParticleProfileRegistry {
         private boolean flipWithWind;
         private List<TextureData> textures;
         private List<String> sweepSounds;
+        private List<String> shortSweepSounds;
         private List<String> captureSounds;
         private DefaultsData defaults;
     }
 
     private static final class TextureData {
         private String id;
-        private int frameSize;
         private int frameCount = 1;
         private float frameTime = 1.0f;
         private double weight = 1.0;
@@ -213,5 +260,7 @@ public final class ParticleProfileRegistry {
         private int maxParticles;
         private float wind;
         private float gravity;
+        private Boolean backgroundParticles;
+        private Boolean interactionEnabled;
     }
 }

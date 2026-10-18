@@ -4,7 +4,6 @@ import com.yori3o.everfall.core.api.SoundCueBuffer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.sounds.SoundManager;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.WeighedSoundEvents;
@@ -33,45 +32,56 @@ public final class SoundCuePlayer {
                 activeSweepSounds[slot] = null;
             }
         }
-        for (int i = 0; i < cues.count(); i++) {
-            if (cues.kindAt(i) != 0) {
+        for (int i = 0; i < cues.count();) {
+            if (cues.kindAt(i) == SoundCueBuffer.CAPTURE) {
                 // Capture sounds bypass sweep limits and never occupy a sweep slot.
                 manager.play(createSound(cues, i, masterVolume));
+                i++;
                 continue;
+            }
+            int end = i + 1;
+            // A resting particle can emit a short + regular pair as one interaction.
+            if (cues.kindAt(i) == SoundCueBuffer.SHORT_SWEEP && end < cues.count()
+                    && cues.kindAt(end) == SoundCueBuffer.SWEEP
+                    && cues.particleIdAt(end) == cues.particleIdAt(i)) {
+                end++;
             }
             long now = System.nanoTime();
-            if (globalSweepCooldown != null && globalSweepCooldown.active(now)) {
-                continue;
-            }
-            int freeSlot = -1;
             boolean particleBusy = false;
             for (int slot = 0; slot < MAX_SWEEP_SOUNDS; slot++) {
-                if (activeSweepSounds[slot] == null) {
-                    if (freeSlot < 0) {
-                        freeSlot = slot;
-                    }
-                } else if (particleIds[slot] == cues.particleIdAt(i)) {
+                if (activeSweepSounds[slot] != null && particleIds[slot] == cues.particleIdAt(i)) {
                     particleBusy = true;
                     break;
                 }
             }
-            if (particleBusy || freeSlot < 0) {
+            if (particleBusy || (globalSweepCooldown != null && globalSweepCooldown.active(now))) {
+                i = end;
                 continue;
             }
-            ResolvedSweepSound sound = new ResolvedSweepSound(cues, i, masterVolume);
-            if (sound.resolve(manager) == null || sound.getSound() == SoundManager.EMPTY_SOUND) {
-                continue;
+            boolean played = false;
+            for (int cue = i; cue < end; cue++) {
+                int freeSlot = -1;
+                for (int slot = 0; slot < MAX_SWEEP_SOUNDS; slot++) {
+                    if (activeSweepSounds[slot] == null) {
+                        freeSlot = slot;
+                        break;
+                    }
+                }
+                if (freeSlot < 0) break;
+                ResolvedSweepSound sound = new ResolvedSweepSound(cues, cue, masterVolume);
+                WeighedSoundEvents event = sound.resolve(manager);
+                if (event == null || sound.getSound() == SoundManager.EMPTY_SOUND) continue;
+                String file = sound.getSound().getPath().toString();
+                Cooldown previous = sweepCooldowns.get(file);
+                if (previous != null && previous.active(now)) continue;
+                manager.play(sound);
+                sweepCooldowns.put(file, randomCooldown(now, SWEEP_COOLDOWN_NANOS));
+                activeSweepSounds[freeSlot] = sound;
+                particleIds[freeSlot] = cues.particleIdAt(cue);
+                played = true;
             }
-            String file = sound.getSound().getPath().toString();
-            Cooldown previous = sweepCooldowns.get(file);
-            if (previous != null && previous.active(now)) {
-                continue;
-            }
-            manager.play(sound);
-            sweepCooldowns.put(file, randomCooldown(now, SWEEP_COOLDOWN_NANOS));
-            globalSweepCooldown = randomCooldown(now, GLOBAL_SWEEP_COOLDOWN_NANOS);
-            activeSweepSounds[freeSlot] = sound;
-            particleIds[freeSlot] = cues.particleIdAt(i);
+            if (played) globalSweepCooldown = randomCooldown(now, GLOBAL_SWEEP_COOLDOWN_NANOS);
+            i = end;
         }
     }
 
@@ -90,7 +100,7 @@ public final class SoundCuePlayer {
     private static SimpleSoundInstance createSound(SoundCueBuffer cues, int index, float masterVolume) {
         // forUI takes pitch before volume.
         return SimpleSoundInstance.forUI(
-                SoundEvent.createVariableRangeEvent(Ids.parse(cues.soundIdAt(index))),
+                com.yori3o.everfall.mc.ProfileSoundEvents.get(cues.soundIdAt(index)),
                 cues.pitchAt(index), cues.volumeAt(index) * masterVolume);
     }
 

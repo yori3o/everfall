@@ -2,7 +2,6 @@ package com.yori3o.everfall.mc;
 
 import com.yori3o.everfall.core.config.ModConfig;
 import com.yori3o.everfall.core.config.PixelMode;
-import com.yori3o.everfall.core.config.ParticleProfileId;
 import com.yori3o.everfall.core.profile.ParticleProfile;
 import com.yori3o.everfall.mc.compat.Ids;
 import dev.isxander.yacl3.config.v2.api.ConfigClassHandler;
@@ -11,7 +10,6 @@ import java.nio.file.Path;
 
 public final class ModConfigBootstrap {
     private static ConfigClassHandler<ModConfig> handler;
-    private static ParticleProfileId savedProfile;
 
     private ModConfigBootstrap() {
     }
@@ -30,17 +28,18 @@ public final class ModConfigBootstrap {
                         .build())
                 .build();
         handler.load();
+        if (handler.instance().backgroundParticles) handler.instance().interactionEnabled = false;
         if (handler.instance().additionalProfiles == null) {
             handler.instance().additionalProfiles = new java.util.ArrayList<>(java.util.List.of("fireflies"));
         }
         if (handler.instance().profile == null) {
-            handler.instance().profile = ParticleProfileId.AUTUMN;
+            handler.instance().profile = "autumn";
         }
+        handler.instance().profile = handler.instance().profile.toLowerCase(java.util.Locale.ROOT);
         if (handler.instance().pixelMode == null) {
             handler.instance().pixelMode = PixelMode.DISPLAY;
         }
         SeasonalProfileSelector.select(handler.instance());
-        savedProfile = handler.instance().profile;
     }
 
     public static ModConfig config() {
@@ -62,8 +61,7 @@ public final class ModConfigBootstrap {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
         ModConfig config = handler.instance();
-        ParticleProfileId selected = SeasonalProfileSelector.select(config);
-        if (config.autoSeason) savedProfile = selected;
+        String selected = SeasonalProfileSelector.select(config);
         return ParticleProfileRegistry.get(selected);
     }
 
@@ -73,13 +71,7 @@ public final class ModConfigBootstrap {
         }
         ModConfig config = handler.instance();
         SeasonalProfileSelector.select(config);
-        if (!config.autoSeason && config.profile != savedProfile) {
-            ParticleProfile.Defaults defaults = ParticleProfileRegistry.get(config.profile).defaults();
-            config.maxParticles = defaults.maxParticles();
-            config.wind = defaults.wind();
-            config.gravity = defaults.gravity();
-        }
-        savedProfile = config.profile;
+        if (config.backgroundParticles) config.interactionEnabled = false;
         handler.save();
     }
 }

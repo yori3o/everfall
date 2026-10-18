@@ -34,3 +34,9 @@ General settings include a master volume slider (0-100%) for all Everfall sounds
 Independent additional profiles can run together with the main seasonal effect. Features settings enable each layer separately. Built-in fireflies slowly wander and pulse in the lower third in spring and summer between local 22:00 and 04:00. All layers share the configured particle count. See [additional profile definitions](docs/ADDITIONAL_PROFILES.md) for custom layers, overrides, and annual holiday conditions.
 
 Profile textures support relative spawn weights and optional one-cycle alternative animations triggered by chance and cooldown conditions. Existing profiles remain compatible. See [texture animation format](docs/TEXTURE_ANIMATIONS.md) for details.
+
+Particle frames can be rectangular: width is read from the image, and height is the image height divided by frameCount. No frameSize field is needed. Scale, alternative sheets, wind mirroring, widget landing, and cursor handling use the inferred dimensions.
+
+Profiles can optionally define `shortSweepSounds`, an array of sound event IDs just like `sweepSounds`. Short sweeps play for airborne and resting particles; when the array is nonempty, regular sweeps play only for resting particles, alongside the short sweep. An omitted or empty array preserves existing behavior. Both clips count toward the six-sound limit and use the existing sweep cooldowns. Sound event IDs must be defined in `sounds.json`.
+
+General settings now include background particles and an interaction toggle. Background mode places the main particles and additional effects behind interface content and forces interaction off, with its control disabled. Interaction can also be disabled independently while particles remain in the foreground. See [background and interaction settings](docs/BACKGROUND_PARTICLES.md).

@@ -31,12 +31,24 @@ public final class ModConfig {
     @AutoGen(category = "general")
     @Boolean
     @SerialEntry
-    public boolean autoSeason = true;
+    public boolean backgroundParticles = false;
 
     @AutoGen(category = "general")
-    @EnumCycler
+    @Boolean
     @SerialEntry
-    public ParticleProfileId profile = ParticleProfileId.AUTUMN;
+    public boolean interactionEnabled = true;
+
+    public boolean canInteract() {
+        return interactionEnabled && !backgroundParticles;
+    }
+
+    @AutoGen(category = "general")
+    @Boolean
+    @SerialEntry
+    public boolean autoSeason = true;
+
+    @SerialEntry
+    public String profile = "autumn";
 
     @AutoGen(category = "particles")
     @EnumCycler
@@ -51,10 +63,10 @@ public final class ModConfig {
     @AutoGen(category = "particles")
     @FloatSlider(min = -300.0f, max = 300.0f, step = 5.0f, format = "%.0f px/s")
     @SerialEntry
-    public float wind = -40.0f;
+    public float wind = -50.0f;
 
     @AutoGen(category = "particles")
-    @FloatSlider(min = 0.0f, max = 100.0f, step = 1.0f, format = "%.0f px/s^2")
+    @FloatSlider(min = -100.0f, max = 100.0f, step = 1.0f, format = "%.0f px/s^2")
     @SerialEntry
-    public float gravity = 50.0f;
+    public float gravity = 40.0f;
 }

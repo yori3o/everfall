@@ -8,29 +8,55 @@ public record ParticleProfile(
         List<String> sweepSounds,
         List<String> captureSounds,
         Defaults defaults,
-        boolean flipWithWind
+        boolean flipWithWind,
+        List<String> shortSweepSounds
 ) {
     public ParticleProfile(String id, List<Texture> textures, List<String> sweepSounds,
                            List<String> captureSounds, Defaults defaults) {
-        this(id, textures, sweepSounds, captureSounds, defaults, false);
+        this(id, textures, sweepSounds, captureSounds, defaults, false, List.of());
     }
 
-    public record Texture(String id, int frameSize, int frameCount, float frameTime,
+    public ParticleProfile(String id, List<Texture> textures, List<String> sweepSounds,
+                           List<String> captureSounds, Defaults defaults, boolean flipWithWind) {
+        this(id, textures, sweepSounds, captureSounds, defaults, flipWithWind, List.of());
+    }
+
+    public record Texture(String id, int frameWidth, int frameHeight, int frameCount, float frameTime,
                           double weight, float scale, AlternativeAnimation alternativeAnimation) {
-        public Texture(String id, int frameSize, int frameCount, float frameTime) {
-            this(id, frameSize, frameCount, frameTime, 1.0, 1.0f, null);
+        public Texture(String id, int side, int frameCount, float frameTime) {
+            this(id, side, side, frameCount, frameTime, 1.0, 1.0f, null);
         }
 
-        public Texture(String id, int frameSize, int frameCount, float frameTime,
+        public Texture(String id, int side, int frameCount, float frameTime,
                        double weight, AlternativeAnimation alternativeAnimation) {
-            this(id, frameSize, frameCount, frameTime, weight, 1.0f, alternativeAnimation);
+            this(id, side, side, frameCount, frameTime, weight, 1.0f, alternativeAnimation);
+        }
+
+        public Texture(String id, int side, int frameCount, float frameTime,
+                       double weight, float scale, AlternativeAnimation alternativeAnimation) {
+            this(id, side, side, frameCount, frameTime, weight, scale, alternativeAnimation);
+        }
+
+        public int frameWidth(boolean alternative) {
+            return alternative && alternativeAnimation != null && alternativeAnimation.frameWidth() > 0
+                    ? alternativeAnimation.frameWidth() : frameWidth;
+        }
+
+        public int frameHeight(boolean alternative) {
+            return alternative && alternativeAnimation != null && alternativeAnimation.frameHeight() > 0
+                    ? alternativeAnimation.frameHeight() : frameHeight;
         }
     }
 
     public enum ConditionType { BOTH, ANY }
     public enum AnimationConditionType { CHANCE, COOLDOWN }
     public record AnimationCondition(AnimationConditionType type, double value) {}
-    public record AlternativeAnimation(String id, List<AnimationCondition> conditions, ConditionType conditionType) {}
+    public record AlternativeAnimation(String id, List<AnimationCondition> conditions, ConditionType conditionType,
+                                       int frameWidth, int frameHeight) {
+        public AlternativeAnimation(String id, List<AnimationCondition> conditions, ConditionType conditionType) {
+            this(id, conditions, conditionType, 0, 0);
+        }
+    }
 
     /** Weights are relative; zero-weight sprites are never spawned. */
     public int chooseTexture(double random) {
@@ -48,6 +74,10 @@ public record ParticleProfile(
         return lastPositive;
     }
 
-    public record Defaults(int maxParticles, float wind, float gravity) {
+    public record Defaults(int maxParticles, float wind, float gravity,
+                           Boolean backgroundParticles, Boolean interactionEnabled) {
+        public Defaults(int maxParticles, float wind, float gravity) {
+            this(maxParticles, wind, gravity, null, null);
+        }
     }
 }

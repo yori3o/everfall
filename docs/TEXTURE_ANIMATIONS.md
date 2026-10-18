@@ -9,7 +9,6 @@ Existing profile JSON is unchanged: missing `weight` means 1, and without
     "id": "everfall:textures/particle/autumn/leaf_01.png",
     "weight": 1,
     "scale": 1,
-    "frameSize": 16,
     "frameCount": 8,
     "frameTime": 4,
     "alternativeAnimationId": "everfall:textures/particle/autumn/leaf_01_alternative.png",
@@ -30,26 +29,44 @@ Fractional weights are supported, including very small weights for rare sprites.
 Weight 0 excludes that texture. At least one texture must have positive weight.
 The selection uses the engine's seeded RNG, with 53-bit precision.
 
+## Automatic frame dimensions
+
+Do not specify `frameSize`. The loader reads image headers when profiles load:
+
+- frame width = full image width;
+- frame height = full image height / `frameCount` (default 1).
+
+Frames are stacked vertically. For example, a 12x40 image with `frameCount: 8`
+contains 12x5 rectangular frames. The image height must be divisible by the count.
+Old `frameSize` fields in user overrides are ignored. The main and alternative
+sheets are inspected independently; their frame counts and timing remain shared.
+Available Minecraft resources are preferred, with built-in assets as the startup
+fallback. Dimensions are resolved at profile load, never during a frame.
+Missing or malformed textures are logged and skipped; if an alternative is bad,
+its main texture remains usable. At least one valid main texture is required.
+
 ## Scale
 
-`scale` is a positive finite size multiplier, default 1. For an 8x8 frame,
-`scale: 2` draws a 16x16 particle; `scale: 0.5` draws it at 4x4 GUI pixels.
+`scale` is a positive finite size multiplier, default 1. For a 12x5 frame,
+`scale: 2` draws a 24x10 particle; `scale: 0.5` draws it at 6x2.5 GUI pixels.
 It applies equally to main and alternative animation, and to particle landing bounds
-and cursor-interaction centers. `frameSize` remains the source frame size: changing
+and cursor-interaction centers. The inferred frame dimensions remain the source size: changing
 `scale` never changes UVs, frame count, frame timing, or movement speed. GUI scale
 is applied afterward as before. Zero, negative, and nonfinite scales are rejected;
 use weight 0 to exclude a texture instead.
 
 ## Alternative animation
 
-The alternative uses a different texture sheet with the **same** `frameSize`,
-`frameCount`, and `frameTime`. Both sheets contain vertically stacked frames.
+The alternative uses a different texture sheet with the same `frameCount` and
+`frameTime`. Both sheets contain vertically stacked frames. Each sheet has its
+own inferred width and height. If these differ, particle bounds follow the active
+sheet and its center stays fixed when switching.
 `frameTime` retains its existing unit: twentieths of a second (4 means 0.2 s/frame).
 
 Conditions are evaluated only when the main animation reaches the end of a cycle.
 If they pass, the alternative starts at frame 0, plays one complete cycle, and
-returns to main frame 0. The particle keeps its identity, size, physics, and sound
-state. Time remaining in a rendered frame carries into the next animation.
+returns to main frame 0. The particle keeps its identity, velocity, and sound
+state; its dimensions follow the active sheet. Time remaining in a rendered frame carries into the next animation.
 
 - `chance`: probability from 0 to 1, rolled independently for each eligible main
   cycle and particle. 0 never passes; 1 always passes.

@@ -6,13 +6,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.MonthDay;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import net.minecraft.server.packs.resources.ResourceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +26,10 @@ public final class AdditionalProfileRegistry {
     public static List<AdditionalProfile> profiles() { return profiles; }
 
     public static void load(Path configDirectory) {
+        load(configDirectory, null);
+    }
+
+    public static void load(Path configDirectory, ResourceManager resources) {
         Map<String, AdditionalProfile> loaded = new LinkedHashMap<>();
         try (var stream = AdditionalProfileRegistry.class.getResourceAsStream(
                 "/assets/everfall/profiles/additional/fireflies.json")) {
@@ -37,25 +41,10 @@ public final class AdditionalProfileRegistry {
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn("[Everfall] Could not load built-in fireflies; skipping this feature", exception);
         }
-        Path directory = configDirectory.resolve("everfall/profiles/additional");
-        try {
-            Files.createDirectories(directory);
-            try (var files = Files.list(directory)) {
-                for (Path file : files.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".json"))
-                        .sorted().toList()) {
-                    String name = file.getFileName().toString();
-                    try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-                        AdditionalProfile profile = parse(reader, name.substring(0, name.length() - 5));
-                        loaded.put(profile.id(), profile);
-                    } catch (IOException | RuntimeException exception) {
-                        LOGGER.warn("[Everfall] Invalid additional profile {}; retaining fallback if available", file,
-                                exception);
-                    }
-                }
-            }
-        } catch (IOException exception) {
-            LOGGER.warn("[Everfall] Could not scan additional profiles; using built-ins", exception);
-        }
+        ProfileFiles.load(configDirectory, resources, true, (id, reader) -> {
+            AdditionalProfile profile = parse(reader, id);
+            loaded.put(profile.id(), profile);
+        });
         profiles = List.copyOf(loaded.values());
     }
 
@@ -75,7 +64,7 @@ public final class AdditionalProfileRegistry {
         }
         List<String> seasons = conditions.profiles == null ? List.of() : List.copyOf(conditions.profiles);
         for (String season : seasons) {
-            if (!List.of("spring", "summer", "autumn", "winter").contains(season)) {
+            if (!ProfileFiles.validId(season)) {
                 throw new IllegalArgumentException("Unknown main profile: " + season);
             }
         }

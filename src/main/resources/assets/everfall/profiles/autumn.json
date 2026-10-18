@@ -5,7 +5,6 @@
         "id": "everfall:textures/particle/autumn/leaf_01.png",
         "scale": 2,
         "weight": 1,
-        "frameSize": 8,
         "frameCount": 8,
         "frameTime": 4,
         "alternativeAnimationId": "everfall:textures/particle/autumn/leaf_01_alternative.png",

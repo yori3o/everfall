@@ -9,7 +9,7 @@
   "color": 15335306,
   "conditions": {
     "profiles": ["spring", "summer"],
-    "startHour": 22,
-    "endHour": 4
+    "startHour": 21,
+    "endHour": 5
   }
 }

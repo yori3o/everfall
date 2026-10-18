@@ -7,6 +7,10 @@ public final class GuiDraw {
     private GuiDraw() {
     }
 
+    public static void backgroundLayerBoundary(Object target) {
+        ((GuiGraphicsExtractor) target).nextStratum();
+    }
+
     public static void pushDisplayPixelCoordinates(Object target, float coordinateScale) {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor) target;
         graphics.pose().pushMatrix();
@@ -27,18 +31,24 @@ public final class GuiDraw {
     }
 
     public static void blit(Object target, String texture, float x, float y, float size, int frameY,
-                            int frameSize, int frameCount, float alpha) {
-        blit(target, texture, x, y, size, frameY, frameSize, frameCount, alpha, false);
+                            int frameSide, int frameCount, float alpha) {
+        blit(target, texture, x, y, size, size, frameY, frameSide, frameSide, frameCount, alpha, false);
     }
 
     public static void blit(Object target, String texture, float x, float y, float size, int frameY,
-                            int frameSize, int frameCount, float alpha, boolean flipX) {
-        float sourceX = flipX ? frameSize : 0.0f;
-        int sourceWidth = flipX ? -frameSize : frameSize;
+                            int frameSide, int frameCount, float alpha, boolean flipX) {
+        blit(target, texture, x, y, size, size, frameY, frameSide, frameSide, frameCount, alpha, flipX);
+    }
+
+    public static void blit(Object target, String texture, float x, float y, float width, float height, int frameY,
+                            int frameWidth, int frameHeight, int frameCount, float alpha, boolean flipX) {
+        float sourceX = flipX ? frameWidth : 0.0f;
+        int sourceWidth = flipX ? -frameWidth : frameWidth;
+        int drawWidth = Math.max(1, Math.round(width));
+        int drawHeight = Math.max(1, Math.round(height));
         int tint = ((int) (Math.max(0.0f, Math.min(alpha, 1.0f)) * 255.0f) << 24) | 0x00ffffff;
-        int drawSize = Math.max(1, Math.round(size));
         ((GuiGraphicsExtractor) target).blit(RenderPipelines.GUI_TEXTURED, Ids.parse(texture),
-                Math.round(x), Math.round(y), sourceX, frameY, drawSize, drawSize, sourceWidth, frameSize,
-                frameSize, frameSize * frameCount, tint);
+                Math.round(x), Math.round(y), sourceX, frameY, drawWidth, drawHeight, sourceWidth, frameHeight,
+                frameWidth, frameHeight * frameCount, tint);
     }
 }

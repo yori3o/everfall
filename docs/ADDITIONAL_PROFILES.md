@@ -6,8 +6,9 @@ Checking a feature permits automatic activation when its conditions match. It do
 not force the effect outside its conditions. Fireflies are selected by default.
 
 The built-in example is `assets/everfall/profiles/additional/fireflies.json`.
-Override it or add other `.json` files in `config/everfall/profiles/additional/`.
-Restart the game to reload definitions. Each filename must match its `id`.
+Add `.json` files under that same path in a resource pack, or override/add them in
+`config/everfall/profiles/additional/`. Reload resource packs (F3+T or the pack selection
+screen) to reload definitions, including config overrides. Each filename must match its `id`.
 Invalid files are logged and skipped; an invalid override retains the built-in.
 New custom profiles appear as independent switches, initially off. Several can be
 enabled together; no fixed slot count or exclusive feature selector is used.
@@ -24,8 +25,8 @@ enabled together; no fixed slot count or exclusive feature selector is used.
   "color": 16773000,
   "conditions": {
     "profiles": ["spring", "summer"],
-    "startHour": 22,
-    "endHour": 4
+    "startHour": 21,
+    "endHour": 5
   }
 }
 ```
@@ -40,10 +41,10 @@ enabled together; no fixed slot count or exclusive feature selector is used.
   size. No Minecraft textures, image files, audio, widget landing, or mouse capture
   are used for fireflies. The full glow stays in the bottom third of the screen.
 - `color`: RGB as a decimal integer; fireflies pulse smoothly at independent phases.
-- `conditions.profiles`: main profile IDs; an empty/omitted list matches all four.
+- `conditions.profiles`: main profile IDs; an empty/omitted list matches every main profile, including custom IDs.
 - `startHour`, `endHour`: local device time, start inclusive and end exclusive.
   Wrapping midnight is supported; equal values mean all day. Built-in fireflies
-  match `[22:00, 04:00)` only in spring/summer, including manually chosen seasons.
+  match `[21:00, 05:00)` only in spring/summer, including manually chosen seasons.
 - Optional `startDate`, `endDate`: paired `MM-DD` dates, both inclusive, for annual
   holiday windows. Year wrapping is supported (e.g. `12-24` through `01-07`).
   Omit both for the whole year. Dates, hours, and profile conditions combine.

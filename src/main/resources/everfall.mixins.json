@@ -5,6 +5,7 @@
   "compatibilityLevel": "${java}",
   "client": [
     "ScreenRenderMixin",
+    "TitleScreenRenderMixin",
     "MouseHandlerMixin",
     "AbstractWidgetMixin"
   ],

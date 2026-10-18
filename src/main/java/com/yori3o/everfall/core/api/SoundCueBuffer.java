@@ -3,6 +3,10 @@ package com.yori3o.everfall.core.api;
 import java.util.Arrays;
 
 public final class SoundCueBuffer {
+    public static final byte SWEEP = 0;
+    public static final byte CAPTURE = 1;
+    public static final byte SHORT_SWEEP = 2;
+
     private String[] soundIds;
     private long[] particleIds;
     private float[] volumes;

@@ -1,18 +1,41 @@
 {
-  "autumn.sweep": {
-    "subtitle": "sounds.everfall.autumn.sweep",
-    "sounds": ["everfall:autumn/sweep_1", "everfall:autumn/sweep_2", "everfall:autumn/sweep_3", "everfall:autumn/sweep_4"]
-  },
-  "autumn.capture": {
-    "subtitle": "sounds.everfall.autumn.capture",
-    "sounds": ["everfall:autumn/capture_1", "everfall:autumn/capture_2", "everfall:autumn/capture_3"]
-  },
-  "winter.sweep": {
-    "subtitle": "sounds.everfall.winter.sweep",
-    "sounds": ["everfall:winter/sweep_1"]
-  },
-  "winter.capture": {
-    "subtitle": "sounds.everfall.winter.capture",
-    "sounds": ["everfall:winter/capture_1"]
-  }
+    "autumn.sweep": {
+        "sounds": [
+            "everfall:autumn/sweep_1",
+            "everfall:autumn/sweep_2",
+            "everfall:autumn/sweep_3",
+            "everfall:autumn/sweep_4"
+        ]
+    },
+    "autumn.capture": {
+        "sounds": [
+            "everfall:autumn/capture_1",
+            "everfall:autumn/capture_2",
+            "everfall:autumn/capture_3"
+        ]
+    },
+    "winter.sweep": {
+        "sounds": [
+            "everfall:winter/sweep_1",
+            "everfall:winter/sweep_2",
+            "everfall:winter/sweep_3",
+            "everfall:winter/sweep_4",
+            "everfall:winter/sweep_5"
+        ]
+    },
+    "winter.short_sweep": {
+        "sounds": [
+            "everfall:winter/short_sweep_1",
+            "everfall:winter/short_sweep_2",
+            "everfall:winter/short_sweep_3"
+        ]
+    },
+    "winter.capture": {
+        "sounds": [
+            "everfall:winter/capture_1",
+            "everfall:winter/capture_2",
+            "everfall:winter/capture_3",
+            "everfall:winter/capture_4"
+        ]
+    }
 }

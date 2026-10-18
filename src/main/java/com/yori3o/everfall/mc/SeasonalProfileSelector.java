@@ -18,21 +18,21 @@ public final class SeasonalProfileSelector {
     private static final Logger LOGGER = LoggerFactory.getLogger("everfall");
     private static final SeasonResolver RESOLVER = loadResolver();
     private static Inputs previousInputs;
-    private static ParticleProfileId selected;
+    private static String selected;
     private static ParticleProfileId detectedProfile;
     private static long nextCheckNanos;
 
     private record Inputs(LocalDate date, ZoneId zone, Locale system, Locale format, Locale display,
-                          String language, boolean automatic, ParticleProfileId manual) {}
+                          String language, boolean automatic, String manual) {}
 
     private SeasonalProfileSelector() {}
 
-    public static ParticleProfileId select(ModConfig config) {
+    public static String select(ModConfig config) {
         long now = System.nanoTime();
         String language = ClientLanguage.selected();
         if (previousInputs != null && now < nextCheckNanos
                 && previousInputs.automatic() == config.autoSeason
-                && (config.autoSeason || previousInputs.manual() == config.profile)
+                && (config.autoSeason || java.util.Objects.equals(previousInputs.manual(), config.profile))
                 && previousInputs.language().equals(language)) {
             return applySelection(config);
         }
@@ -45,14 +45,14 @@ public final class SeasonalProfileSelector {
         previousInputs = inputs;
         if (RESOLVER == null) {
             selected = config.profile;
-            detectedProfile = config.profile;
+            detectedProfile = ParticleProfileId.AUTUMN;
             LOGGER.info("[Everfall] Seasonal selection unavailable; using manual profile={}", selected);
             return applySelection(config);
         }
         SeasonResolver.Result result = RESOLVER.resolve(inputs.date(), zone, inputs.system(), inputs.format(),
                 inputs.display(), language);
         detectedProfile = result.profile();
-        selected = config.autoSeason ? detectedProfile : config.profile;
+        selected = config.autoSeason ? detectedProfile.name().toLowerCase(Locale.ROOT) : config.profile;
         LOGGER.info("[Everfall] Seasonal profile: auto={}, selected={}, date={}, inferredHemisphere={}, "
                         + "northScore={}, southScore={}, northernFallback={}; {}",
                 config.autoSeason, selected, inputs.date(), result.hemisphere(), result.northScore(),
@@ -60,13 +60,25 @@ public final class SeasonalProfileSelector {
         return applySelection(config);
     }
 
-    public static ParticleProfileId automaticProfile() {
+    public static String automaticProfile() {
         select(ModConfigBootstrap.config());
-        return detectedProfile;
+        return detectedProfile.name().toLowerCase(Locale.ROOT);
     }
 
-    private static ParticleProfileId applySelection(ModConfig config) {
-        if (config.autoSeason) config.profile = selected;
+    private static String applySelection(ModConfig config) {
+        if (config.autoSeason && !java.util.Objects.equals(config.profile, selected)) {
+            config.profile = selected;
+            var profile = ParticleProfileRegistry.get(selected);
+            if (!profile.textures().isEmpty()) {
+                var defaults = profile.defaults();
+                config.maxParticles = defaults.maxParticles();
+                config.wind = defaults.wind();
+                config.gravity = defaults.gravity();
+                if (defaults.backgroundParticles() != null) config.backgroundParticles = defaults.backgroundParticles();
+                if (defaults.interactionEnabled() != null) config.interactionEnabled = defaults.interactionEnabled();
+                if (config.backgroundParticles) config.interactionEnabled = false;
+            }
+        }
         return selected;
     }
 

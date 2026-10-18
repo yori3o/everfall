@@ -6,6 +6,8 @@ import com.yori3o.everfall.core.engine.BasicParticleEngine;
 import com.yori3o.everfall.core.engine.AdditionalParticleSystem;
 import com.yori3o.everfall.core.config.PixelMode;
 import com.yori3o.everfall.mc.compat.SpriteRenderer;
+import com.yori3o.everfall.mc.compat.GuiDraw;
+import com.yori3o.everfall.mc.compat.ProfileResourceReload;
 import com.yori3o.everfall.mc.compat.SoundCuePlayer;
 import com.yori3o.everfall.mc.compat.WindowMode;
 import com.mojang.blaze3d.platform.Window;
@@ -34,6 +36,9 @@ public final class ClientRuntime {
     private static int previousWindowHeight = -1;
     private static boolean previousFullscreen;
     private static PixelMode previousPixelMode = PixelMode.DISPLAY;
+    private static boolean backgroundRendered;
+    private static int frameMouseX;
+    private static int frameMouseY;
 
     private ClientRuntime() {
     }
@@ -47,6 +52,17 @@ public final class ClientRuntime {
         resetParticles();
         previousFrameNanos = System.nanoTime();
         initialized = true;
+        ProfileResources.initialize(configDirectory);
+        ProfileResourceReload.install();
+    }
+
+    public static void profilesReloaded() {
+        if (!initialized) return;
+        additionalParticles = new AdditionalParticleSystem(AdditionalProfileRegistry.profiles());
+        resetParticles();
+        INPUT_COLLECTOR.resetScreenState();
+        screenChanged = true;
+        previousFrameNanos = System.nanoTime();
     }
 
     public static void mouseButtonChanged(int button, int action) {
@@ -62,10 +78,14 @@ public final class ClientRuntime {
         mouseDown = mouseButtonMask != 0;
     }
 
-    public static void beginFrame(Screen screen) {
+    public static void beginFrame(Screen screen, int mouseX, int mouseY) {
         if (!initialized || screen == null) {
             return;
         }
+        ProfileResourceReload.install();
+        backgroundRendered = false;
+        frameMouseX = mouseX;
+        frameMouseY = mouseY;
         Window window = Minecraft.getInstance().getWindow();
         int windowWidth = window.getWidth();
         int windowHeight = window.getHeight();
@@ -103,12 +123,31 @@ public final class ClientRuntime {
     }
 
     public static void captureWidget(AbstractWidget widget) {
-        if (initialized) {
+        if (initialized && ModConfigBootstrap.config().canInteract()) {
             INPUT_COLLECTOR.captureWidget(widget);
         }
     }
 
     public static void render(Screen screen, Object graphics, int mouseX, int mouseY) {
+        if (initialized && ModConfigBootstrap.config().backgroundParticles) {
+            INPUT_COLLECTOR.finishFrame();
+            return;
+        }
+        renderParticles(screen, graphics, mouseX, mouseY);
+    }
+
+    public static void renderBackground(Screen screen, Object graphics) {
+        if (!initialized || !ModConfigBootstrap.config().backgroundParticles || backgroundRendered) return;
+        backgroundRendered = true;
+        GuiDraw.backgroundLayerBoundary(graphics);
+        try {
+            renderParticles(screen, graphics, frameMouseX, frameMouseY);
+        } finally {
+            GuiDraw.backgroundLayerBoundary(graphics);
+        }
+    }
+
+    private static void renderParticles(Screen screen, Object graphics, int mouseX, int mouseY) {
         if (!initialized || screen == null) {
             return;
         }
