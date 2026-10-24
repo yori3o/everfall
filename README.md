@@ -4,21 +4,24 @@
 
 Interactive background particles for Minecraft menus: falling leaves, snowflakes, drifting petals and rising flames. Let them settle on buttons, sweep them away, or pick them up with your mouse.
 
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/yo-everfall?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/yo-everfall)
 [![License](https://img.shields.io/github/license/yori3o/everfall)](LICENSE)
 [![Issues](https://img.shields.io/github/issues/yori3o/everfall)](https://github.com/yori3o/everfall/issues)
 
 </div>
 
-## ⭐ Features
+<p align="center">
+  <img src="https://cdn.modrinth.com/data/rENFVC5k/images/e700056faf141ad4ad5bf91640b34ecfeaa048cc.png" width="32%" alt="Осень">
+  <img src="https://cdn.modrinth.com/data/rENFVC5k/images/ec6800ba1fb95ebf9331bf7e67bf917d498d1b20.png" width="32%" alt="Зима">
+  <img src="https://cdn.modrinth.com/data/rENFVC5k/images/8ae732194c20db55ce9e3c66f2bd2e164c04f572.png" width="32%" alt="Весна">
+</p>
 
-- Four seasonal themes with automatic selection based on your local region and date
-- A fire theme with rising animated particles
-- Night-time fireflies in spring and summer
-- Mouse interaction, widget collisions and positional sound
-- Background mode for a quieter, non-interactive look
-- Settings for particle count, wind, gravity, sound and movement style
-- Custom profiles, textures and sounds through resource packs
-- Client-side only; no server installation needed
+## ⭐ Features:
+
+- Four seasonal themes with an auto-selection feature;
+- Interaction with the mouse cursor, collisions with widgets, and positional audio;
+- Configurable settings for particle count, wind strength, gravity, sound, and other features;
+- Support for custom profiles via resource packs.
 
 ## 📅 Supported versions
 
