@@ -4,6 +4,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 public final class SoundEventRegistrar {
+
     private SoundEventRegistrar() {
     }
 

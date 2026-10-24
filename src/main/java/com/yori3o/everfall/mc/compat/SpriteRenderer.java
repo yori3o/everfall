@@ -4,8 +4,10 @@ import com.yori3o.everfall.core.api.SpriteBuffer;
 import com.yori3o.everfall.core.profile.ParticleProfile;
 
 public final class SpriteRenderer {
+
     public void draw(Object graphics, SpriteBuffer sprites, ParticleProfile profile, float coordinateScale) {
         GuiDraw.pushDisplayPixelCoordinates(graphics, coordinateScale);
+
         try {
             for (int i = 0; i < sprites.count; i++) {
                 if (sprites.textureIndex[i] < 0) {
@@ -13,6 +15,7 @@ public final class SpriteRenderer {
                             sprites.alpha[i], sprites.color[i]);
                     continue;
                 }
+
                 ParticleProfile.Texture texture = profile.textures().get(sprites.textureIndex[i]);
                 String textureId = sprites.alternativeAnimation[i] && texture.alternativeAnimation() != null
                         ? texture.alternativeAnimation().id() : texture.id();

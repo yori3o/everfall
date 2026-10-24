@@ -12,7 +12,7 @@
     "sources": "https://github.com/yori3o/everfall"
   },
   "license": "MIT",
-  "icon": "assets/template/icon.png",
+  "icon": "assets/everfall/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
@@ -29,7 +29,7 @@
   "depends": {
     "fabricloader": ">=${loader}",
     "minecraft": "${minecraft}",
-    "yet_another_config_lib_v3": ">=${yacl}"
+    "yet_another_config_lib_v3": "*"
   },
   "suggests": {
     "modmenu": "*"

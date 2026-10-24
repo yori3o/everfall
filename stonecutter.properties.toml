@@ -2,7 +2,7 @@
 mod.id = "everfall"
 mod.name = "Everfall"
 mod.group = "com.yori3o"
-mod.version = "0.1.0"
+mod.version = "1.0.0"
 
 deps.fabric_loader = "0.19.5"
 loomx.loom_version = "1.18-SNAPSHOT"

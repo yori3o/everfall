@@ -84,7 +84,6 @@ tasks {
             register("name", sc.properties["mod.name"])
             register("version", sc.properties["mod.version"])
             register("minecraft", sc.properties["mod.mc_compat"])
-            register("yacl", sc.properties.get<String>("deps.yacl").substringBefore('+'))
         }
 
         filesMatching("META-INF/neoforge.mods.toml") { expand(props) }

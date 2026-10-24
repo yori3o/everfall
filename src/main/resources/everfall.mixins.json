@@ -4,10 +4,16 @@
   "refmap": "everfall.refmap.json",
   "compatibilityLevel": "${java}",
   "client": [
+    "SoundManagerAccessor",
+    "SoundEngineAccessor",
+    "ChannelAccessor",
+    "GuiScissorMixin",
+    "DebugParticleCountMixin",
     "ScreenRenderMixin",
     "TitleScreenRenderMixin",
     "MouseHandlerMixin",
-    "AbstractWidgetMixin"
+    "AbstractWidgetMixin",
+    "LogoRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

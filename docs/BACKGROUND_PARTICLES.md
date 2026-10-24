@@ -1,21 +1,44 @@
-# Background particles and interaction
+# Фон, взаимодействие и препятствия
 
-General settings include two independent switches:
+Everfall рисует основной профиль и дополнительные эффекты одним из двух способов. Выбор слоя относится ко всей сцене, а не к отдельной текстуре.
 
-- `backgroundParticles` (default `false`): draw the main profile and all additional effects after the menu backdrop, before interface content.
-- `interactionEnabled` (default `true`): allow landing on widgets, cursor sweeping, dragging, and their sounds.
+| Режим | Положение частиц | Взаимодействие |
+|---|---|---|
+| Обычный | В конце отрисовки экрана | По `interactionEnabled` |
+| `backgroundParticles: true` | После фона меню, до его содержимого | Принудительно выключено |
 
-Enabling background particles sets interaction to false and disables its YACL control, including while editing pending values. Leaving background mode unlocks the control; interaction can then be enabled manually. Loading or saving a background configuration also forces interaction off. The engine additionally checks both settings, so a manually edited contradictory configuration cannot enable background interaction.
+Фоновые частицы перекрываются кнопками, текстом, изображениями и панелями, которые меню рисует после своего фона. Панорама и полноэкранная подложка остаются позади частиц. У произвольного стороннего renderer порядок может отличаться от стандартных хуков Minecraft.
 
-Disabling interaction releases captured and grounded particles without clearing the particle field. It disables obstacle collisions and cursor impulses; wind, gravity, animation, and additional effects continue. Re-enabling interaction while a mouse button remains held does not capture another particle until a new press.
+## Переключение
 
-Rendering uses one simulation step and draw per frame. Minecraft 26.x draws the background layer after the screen background, using separate GUI strata; the title screen instead draws it after its panorama. Minecraft 1.21.1 draws after the menu background or full-screen dimming layer, before container panels; the title screen also uses a panorama hook. A guard prevents duplicate draws when multiple hooks run. Foreground rendering occurs at the end of the screen wrapper.
+Включение фона сразу ставит `interactionEnabled` в `false` и блокирует его поле в YACL, в том числе для несохранённых изменений. Выключение фона разблокирует поле, но не возвращает взаимодействие автоматически. Загрузка/сохранение нормализует противоречивые значения; основной движок дополнительно проверяет оба флага.
 
-## Manual checks
+Без взаимодействия частицы продолжают двигаться, анимироваться и исчезать, но не ложатся на виджеты, не реагируют на курсор и не создают звуки захвата/смахивания. Уже лежащие и захваченные частицы освобождаются без полного сброса поля. Новый захват требует нового нажатия, а не удержания кнопки во время переключения.
 
-1. On the title screen, enable background particles: the logo, splash, text, buttons, and tooltips cover particles; fireflies also move behind them.
-2. Visit options, YACL, inventory, and a container (enable `showInWorld` as needed): full-screen backdrops stay behind particles, while interface panels and images cover them.
-3. Enable background mode with interaction enabled: the interaction switch immediately turns off and becomes unavailable. Save, reopen, and verify the state persists.
-4. Disable background mode: the interaction control unlocks and stays off until enabled. Canceling configuration edits preserves the saved settings.
-5. Disable interaction while dragging or while particles rest on buttons: particles are released, pass through widgets, and no new interaction sounds play. With interaction disabled, stationary or moving clicks cannot capture or sweep particles.
-6. Restore interaction: sweeping, capture, and landing work again. Check both pixel modes, window resize, and screen changes.
+Профили могут задавать эти параметры через `defaults.backgroundParticles` и `defaults.interactionEnabled`. Пропущенные поля сохраняют текущие значения игрока. Приоритет фона сохраняется и для профильных defaults.
+
+## Что считается препятствием
+
+Препятствия собираются из фактически проходящих отрисовку `AbstractWidget`. Учитываются `visible`, положительные размеры и альфа не ниже 1/255. Невидимые и полностью прозрачные элементы не добавляются. Видимый, но disabled-виджет остаётся опорой: `active` не равнозначен видимости.
+
+Контейнеры `AbstractContainerWidget` и строковые `AbstractStringWidget` исключены. Повторные вызовы одного виджета в кадре не дублируют препятствие. Логотип Minecraft добавляется отдельным хуком только после завершённой отрисовки с видимой альфой и с реальной вертикальной позицией. Постоянной невидимой площадки на месте логотипа нет.
+
+Прямоугольник виджета обрезается текущей областью `scissor`, включая пересечение вложенных областей. Полностью скрытый ею виджет не становится препятствием; у частично скрытого учитывается только видимая часть. При исчезновении виджета-опоры из отрисовки лежащая на нём частица удаляется.
+
+Коллизия использует прямоугольник виджета, а не пиксельную маску его картинки. Это не автоматическое распознавание всего изображения экрана: нестандартные элементы чужого мода, не проходящие через эти renderer'ы, могут не стать препятствиями. Специальной зависимости от FancyMenu нет.
+
+Частицы могут быть смахнуты быстрым движением мыши или захвачены нажатием рядом с ними. Обе проверки учитывают видимое положение покачивающегося спрайта. Скорость и радиусы взаимодействия используют экранные пиксели независимо от GUI scale; дробные координаты мыши не округляются до сетки интерфейса. Захваченная частица следует курсору, а при отпускании получает его скорость. Захват не выключает смахивание остальных частиц. На опоре и в захвате анимация приостановлена.
+
+## Как устроены хуки
+
+На 26.x фон рисуется после screen background с разделением GUI-strata. Главному меню нужен отдельный хук после панорамы. На 1.21.1 используются точки после фона или прозрачной подложки, до панелей контейнера. Защита от повторного вызова допускает только один шаг фоновой сцены за кадр.
+
+Обычный передний слой рисуется в конце wrapper-метода экрана. Физика и вывод остаются связаны с кадром; переход между режимами не запускает второй независимый цикл симуляции.
+
+## Быстрая проверка после изменения хуков
+
+Проверьте главное меню, настройки, инвентарь и контейнер при разрешённом показе во время игры. В фоне содержимое должно закрывать и основные частицы, и светлячков. При выключенном взаимодействии не должны появляться новые импульсы, захваты или звуки. Скрытый логотип и прозрачные кнопки не должны сохранять опору.
+
+Для меню, изменённого ресурспаком или сторонним модом, отдельно проверьте порядок фона и отменённые вызовы renderer. Полная сборка сама по себе не подтверждает визуальную совместимость.
+
+Исходники: [ClientInputCollector](../src/main/java/com/yori3o/everfall/mc/ClientInputCollector.java), [ClientRuntime](../src/main/java/com/yori3o/everfall/mc/ClientRuntime.java), [modern mixins](../src/mc/modern/java/com/yori3o/everfall/mc/mixin/), [legacy mixins](../src/mc/legacy/java/com/yori3o/everfall/mc/mixin/).

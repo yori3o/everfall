@@ -1,15 +1,27 @@
 package com.yori3o.everfall.core.config;
 
-import dev.isxander.yacl3.config.v2.api.SerialEntry;
-import dev.isxander.yacl3.config.v2.api.autogen.AutoGen;
-import dev.isxander.yacl3.config.v2.api.autogen.FloatSlider;
-import dev.isxander.yacl3.config.v2.api.autogen.IntSlider;
-import dev.isxander.yacl3.config.v2.api.autogen.Boolean;
-import dev.isxander.yacl3.config.v2.api.autogen.EnumCycler;
 import java.util.ArrayList;
 import java.util.List;
 
+import dev.isxander.yacl3.config.v2.api.SerialEntry;
+import dev.isxander.yacl3.config.v2.api.autogen.AutoGen;
+import dev.isxander.yacl3.config.v2.api.autogen.Boolean;
+import dev.isxander.yacl3.config.v2.api.autogen.EnumCycler;
+import dev.isxander.yacl3.config.v2.api.autogen.FloatSlider;
+import dev.isxander.yacl3.config.v2.api.autogen.IntSlider;
+
 public final class ModConfig {
+
+    public static final int MAX_PARTICLES = 100_000;
+
+    public static int clampParticleCount(int count) {
+        return Math.max(0, Math.min(count, MAX_PARTICLES));
+    }
+
+    /** Legacy F3 fallback; newer versions use the native debug-entry setting. */
+    @SerialEntry
+    public boolean showParticleCount = false;
+
     @SerialEntry
     public List<String> additionalProfiles = new ArrayList<>(List.of("fireflies"));
 
@@ -68,5 +80,5 @@ public final class ModConfig {
     @AutoGen(category = "particles")
     @FloatSlider(min = -100.0f, max = 100.0f, step = 1.0f, format = "%.0f px/s^2")
     @SerialEntry
-    public float gravity = 40.0f;
+    public float gravity = 36.0f;
 }

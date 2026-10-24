@@ -1,0 +1,31 @@
+{
+  "id": "fire",
+  "textures": [
+    {
+        "id": "everfall:textures/particle/fire/fire_1.png",
+        "scale": 2,
+        "weight": 1,
+        "frameCount": 8,
+        "frameTime": 26,
+        "repeat": false
+    },
+    {
+        "id": "everfall:textures/particle/fire/fire_2.png",
+        "scale": 2,
+        "weight": 1,
+        "frameCount": 8,
+        "frameTime": 26,
+        "repeat": false
+    }
+  ],
+  "initialFill": false,
+  "sway": false,
+  "offsetSpawnWithWind": true,
+  "defaults": {
+    "maxParticles": 300,
+    "wind": 20.0,
+    "gravity": -100.0,
+    "backgroundParticles": true,
+    "interactionEnabled": false
+  }
+}

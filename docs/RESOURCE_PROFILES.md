@@ -1,121 +1,105 @@
-# Resource-pack and config profiles
+# Основные профили и ресурспаки
 
-Main profiles are discovered in `assets/everfall/profiles/*.json` inside active
-resource packs and `config/everfall/profiles/*.json`. Additional profiles are
-independently discovered in the `additional/` subfolder at both locations.
-Files are directly inside their respective folder. Their filename (without `.json`)
-must match `id`, using lowercase letters, digits, underscores, dots, or hyphens.
+Основной профиль задаёт текстуры частиц, их анимации, звуки и несколько правил генерации. Одновременно выбирается один основной профиль; независимые эффекты подключаются через [дополнительные профили](ADDITIONAL_PROFILES.md).
 
-Priority, lowest to highest:
+## Встроенные темы
 
-1. Bundled profiles.
-2. Active resource packs, in Minecraft's pack priority order.
-3. Files in `config/everfall/profiles/` (and its `additional/` folder).
+| ID | Оформление | Количество / ветер / гравитация в defaults |
+|---|---|---|
+| `spring` | Розовые весенние лепестки | 160 / −24 / 32 |
+| `summer` | Зелёные летние листья | 100 / 32 / 40 |
+| `autumn` | Осенние листья с альтернативной анимацией | 200 / −50 / 36 |
+| `winter` | Снежинки, включая редкий вариант с лицом крипера | 400 / 20 / 30 |
+| `fire` | Поднимающиеся язычки огня с однократной анимацией | 300 / 20 / −100 |
 
-A profile replaces the whole definition with that ID; fields are not merged.
-Invalid definitions are logged with their source and skipped, retaining the next
-valid lower-priority definition when available. An unavailable seasonal profile
-produces no main particles. A removed custom profile also produces no main particles
-if its ID remains selected; selecting another valid profile restores the effect.
+Огонь дополнительно выключает начальное заполнение и покачивание, включает продление линии спавна и фоновый режим без взаимодействия. Весна, лето и осень используют собственные текстуры; это не копии зимнего оформления. Значения таблицы относятся к встроенным JSON 1.0.0 и могут быть заменены ресурспаком или настройками игрока.
 
-Profiles and config overrides reload when resource packs reload (F3+T, applying the
-pack selection, or startup). Particle state resets to use the new definitions and
-texture dimensions safely. Reopen the settings screen after a reload to refresh
-its choices and additional-effect switches.
+## Где лежат определения
 
-## Main profile example
+| Источник | Основные профили | Дополнительные |
+|---|---|---|
+| Встроенные ресурсы и активные ресурспаки | `assets/everfall/profiles/*.json` | `assets/everfall/profiles/additional/*.json` |
+| Папка конфигурации | `config/everfall/profiles/*.json` | `config/everfall/profiles/additional/*.json` |
 
-Resource-pack structure (plus a normal `pack.mcmeta` for your Minecraft version):
+Читаются JSON непосредственно в этих папках, без произвольных вложенных каталогов. Файл `embers.json` должен иметь `"id": "embers"`. Допустимы строчные латинские буквы, цифры, `_`, `-` и `.`. Определения профилей ищутся в namespace `everfall`; ссылки на текстуры и звуки могут использовать любой namespace.
 
-```text
-assets/
-  everfall/
-    profiles/
-      cherry.json
-      additional/
-        golden_fireflies.json
-    textures/particle/cherry/petal.png
-    sounds/cherry/sweep_1.ogg
-    sounds.json
-```
+Приоритет возрастает от встроенного определения к активным ресурспакам в их порядке Minecraft, затем к файлам в `config`. Новое определение заменяет профиль целиком: поля с нижнего уровня не дополняются автоматически.
 
-`assets/everfall/profiles/cherry.json`:
+## Пример: новый профиль только из JSON
+
+Создайте ресурспак с обычным `pack.mcmeta`, подходящим вашей версии Minecraft, и файлом `assets/everfall/profiles/embers.json`:
 
 ```json
 {
-  "id": "cherry",
+  "id": "embers",
+  "initialFill": false,
+  "sway": false,
+  "offsetSpawnWithWind": true,
   "textures": [
     {
-      "id": "everfall:textures/particle/cherry/petal.png",
+      "id": "everfall:textures/particle/fire/fire_1.png",
       "frameCount": 8,
-      "frameTime": 2,
+      "frameTime": 20,
+      "scale": 2,
       "weight": 1,
-      "scale": 1
+      "repeat": false
     }
   ],
-  "sweepSounds": ["everfall:cherry.sweep"],
-  "defaults": { "maxParticles": 200, "wind": -50, "gravity": 40 }
-}
-```
-
-Textures can also use another namespace. Their frame dimensions are read from the
-actual resource-pack images; see [texture animations](TEXTURE_ANIMATIONS.md).
-Sound lists are optional, including `shortSweepSounds` and `captureSounds`.
-
-New main profiles appear in the profile selector. Disable automatic seasonal
-selection to choose one. Automatic selection still resolves to `spring`, `summer`,
-`autumn`, or `winter`; replacing those IDs changes the automatic seasonal themes.
-Choosing a custom profile stages its count/wind/gravity defaults just like a bundled
-profile. Pending edits can still be saved or canceled normally.
-
-Optional `defaults.backgroundParticles` and `defaults.interactionEnabled` also stage
-the corresponding settings on manual profile selection. Omitted/null flags preserve
-the current settings, so existing profiles keep their previous behavior. For example:
-
-```json
-"defaults": {
-  "maxParticles": 200,
-  "wind": -50,
-  "gravity": 40,
-  "backgroundParticles": true,
-  "interactionEnabled": false
-}
-```
-
-Background mode always forces interaction off and disables its control, even if a
-profile requests both flags as true. To enable interaction in a profile, explicitly
-set `backgroundParticles` to false and `interactionEnabled` to true. Enabling automatic selection stages the detected profile defaults, even when its ID
-already matches. Automatic season changes also apply defaults once; repeated checks
-of the same season preserve subsequent user adjustments.
-
-The config `profile` is now a string ID. Existing uppercase seasonal values such as
-`"AUTUMN"` are normalized to `"autumn"` on load.
-
-## Sounds
-
-The resource pack defines sounds normally. For the example above, `sounds.json`
-contains:
-
-```json
-{
-  "cherry.sweep": {
-    "sounds": ["everfall:cherry/sweep_1"]
+  "defaults": {
+    "maxParticles": 200,
+    "wind": 20,
+    "gravity": -80,
+    "backgroundParticles": true,
+    "interactionEnabled": false
   }
 }
 ```
 
-Minecraft's sound reload discovers `sounds.json` and OGG files. Everfall builds
-client sound events for every referenced sweep/short-sweep/capture ID at profile
-reload. This supports arbitrary namespaces without trying to modify Minecraft's
-frozen sound registry after startup. Existing limits, cooldowns, and volume rules
-apply to custom sounds too. A config profile can reference assets provided by any
-active resource pack; JSON files in the config directory do not themselves supply
-textures or audio.
+Пример переиспользует существующую текстуру Everfall. Собственный PNG можно положить в `assets/<namespace>/textures/...` и сослаться на него через `<namespace>:textures/...png`. Размеры кадров читаются из изображения. Полное описание: [текстуры и анимации](TEXTURE_ANIMATIONS.md).
 
-## Additional profiles
+Активируйте ресурспак, дождитесь перезагрузки и переоткройте настройки Everfall. Выключите автовыбор и выберите `embers`. Тот же JSON можно положить в папку конфигурации без создания ресурспака, если все его ассеты уже доступны игре.
 
-See [additional particle profiles](ADDITIONAL_PROFILES.md). Their existing format
-is unchanged (`motion: "fireflies"` is the currently supported motion model).
-`conditions.profiles` can reference custom main profile IDs such as `"cherry"`;
-an empty list matches all main profiles. Multiple additional profiles can be enabled
-at once, and they share the configured particle budget with the main profile.
+## Поля верхнего уровня
+
+| Поле | Если не задано | Назначение |
+|---|---|---|
+| `id` | Обязательно | Совпадает с именем файла |
+| `textures` | Нужна хотя бы одна пригодная текстура | Варианты внешнего вида и анимации |
+| `defaults` | Обязательно | Рекомендованные настройки при выборе профиля |
+| `initialFill` | `true` | Начальное заполнение по площади экрана |
+| `sway` | `true` | Лёгкое периодическое покачивание по X |
+| `flipWithWind` | `false` | Отражать текстуры по X при отрицательном ветре |
+| `offsetSpawnWithWind` | `false` | Продлить горизонтальную линию навстречу ветру вместо бокового спавна |
+| `sweepSounds` | `[]` | Обычные звуки смахивания |
+| `shortSweepSounds` | `[]` | Короткие звуки для летящих и лежащих частиц |
+| `captureSounds` | `[]` | Звуки захвата мышью |
+
+Списки звуков содержат ID событий, например `"mypack:embers.sweep"`, а не пути к OGG. Они объявляются в стандартном `sounds.json`; см. [звук](AUDIO.md).
+
+`defaults.maxParticles`, `defaults.wind` и `defaults.gravity` — числа. Для понятного пресета указывайте все три; пропущенные числовые поля получат 0. Количество должно быть от 0 до 100 000, физические значения — конечными. Профиль допускает конечные физические значения вне диапазонов GUI, но для обычного использования удобнее оставаться в его пределах. Определение с количеством вне защитного диапазона отклоняется.
+
+`defaults.backgroundParticles` и `defaults.interactionEnabled` — необязательные boolean. Отсутствующее или `null` поле сохраняет текущую настройку игрока. Фоновый режим всегда сильнее взаимодействия: сочетание двух `true` не разрешает коллизии на фоне.
+
+## Название и автовыбор
+
+Название ищется по ключу `yacl3.config.enum.ParticleProfileId.<id>` в language-файлах. Если перевода нет, показывается ID. Для примера добавьте в `assets/everfall/lang/en_us.json`:
+
+```json
+{
+  "yacl3.config.enum.ParticleProfileId.embers": "Embers"
+}
+```
+
+Поле `name` для основного профиля не нужно. Перевод можно дать и для других языков в соответствующих файлах ресурспака.
+
+Автовыбор знает только `spring`, `summer`, `autumn` и `winter`: новые ID доступны вручную. Ресурспак может заменить один из сезонных ID, чтобы его тема участвовала в автоматическом выборе. Встроенный `fire` также выбирается вручную.
+
+## Перезагрузка и ошибки
+
+Профили, ассеты и клиентские звуковые события перечитываются при запуске и перезагрузке ресурсов: F3+T или применении списка ресурспаков. Файлы в папке конфигурации участвуют в той же перезагрузке. Частицы сбрасываются, чтобы старые размеры и индексы не смешивались с новыми.
+
+Некорректное определение пропускается с указанием источника в логе; остаётся пригодная версия с более низким приоритетом. Нечитаемая основная текстура пропускается отдельно. Если пригодных текстур не осталось, профиль не предлагается как рабочий. Неизвестный или полностью сломанный выбранный ID даёт пустой основной эффект, а не аварийное завершение игры.
+
+Отсутствующая картинка альтернативы отключает только альтернативную анимацию. Некорректные условия, веса, масштабы и другие структурные ошибки могут отклонить определение целиком. Ищите сообщения `[Everfall]` в `logs/latest.log`.
+
+Исходники: [ProfileFiles](../src/main/java/com/yori3o/everfall/mc/ProfileFiles.java), [ParticleProfileRegistry](../src/main/java/com/yori3o/everfall/mc/ParticleProfileRegistry.java), [ProfileResources](../src/main/java/com/yori3o/everfall/mc/ProfileResources.java).

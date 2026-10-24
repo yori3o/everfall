@@ -10,7 +10,7 @@ version = "${version}"
 authors = "Yori3o"
 description = "A client-side mod that adds configurable seasonal particles to GUI screens."
 
-logoFile = "assets/template/icon.png"
+logoFile = "assets/everfall/icon.png"
 displayURL = "https://github.com/yori3o/everfall"
 #issueTrackerUrl = "..."
 
@@ -27,6 +27,6 @@ side = "BOTH"
 [[dependencies.${id}]]
 modId = "yet_another_config_lib_v3"
 type = "required"
-versionRange = "[${yacl},)"
+versionRange = "*"
 ordering = "NONE"
 side = "CLIENT"

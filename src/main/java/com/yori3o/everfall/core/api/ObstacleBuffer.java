@@ -1,6 +1,7 @@
 package com.yori3o.everfall.core.api;
 
 public final class ObstacleBuffer {
+
     private final float[] x;
     private final float[] y;
     private final float[] width;

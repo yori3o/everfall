@@ -3,6 +3,7 @@ package com.yori3o.everfall.core.api;
 import java.util.Arrays;
 
 public final class SpriteBuffer {
+
     public float[] x;
     public float[] y;
     public float[] width;
@@ -36,6 +37,7 @@ public final class SpriteBuffer {
         if (capacity <= x.length) {
             return;
         }
+
         x = Arrays.copyOf(x, capacity);
         y = Arrays.copyOf(y, capacity);
         width = Arrays.copyOf(width, capacity);
@@ -55,12 +57,12 @@ public final class SpriteBuffer {
     }
 
     public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color,
-                       byte layer, int textureIndex, int frameIndex) {
+            byte layer, int textureIndex, int frameIndex) {
         return add(x, y, width, height, rotation, alpha, color, layer, textureIndex, frameIndex, false);
     }
 
     public boolean add(float x, float y, float width, float height, float rotation, float alpha, int color,
-                       byte layer, int textureIndex, int frameIndex, boolean alternativeAnimation) {
+            byte layer, int textureIndex, int frameIndex, boolean alternativeAnimation) {
         if (count == this.x.length) {
             return false;
         }

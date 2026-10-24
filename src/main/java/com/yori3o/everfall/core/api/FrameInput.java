@@ -4,9 +4,12 @@ import com.yori3o.everfall.core.config.ModConfig;
 import com.yori3o.everfall.core.profile.ParticleProfile;
 
 public final class FrameInput {
+
     public int screenWidth;
     public int screenHeight;
     public float coordinateScale = 1.0f;
+    /** Simulation units per display pixel; interaction tuning uses display pixels. */
+    public float interactionScale = 1.0f;
     public float deltaSeconds;
     public float cursorX;
     public float cursorY;

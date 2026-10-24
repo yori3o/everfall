@@ -1,23 +1,28 @@
 package com.yori3o.everfall.mc;
 
-import com.yori3o.everfall.core.api.FrameInput;
-import com.yori3o.everfall.core.api.FrameOutput;
-import com.yori3o.everfall.core.engine.BasicParticleEngine;
-import com.yori3o.everfall.core.engine.AdditionalParticleSystem;
-import com.yori3o.everfall.core.config.PixelMode;
-import com.yori3o.everfall.mc.compat.SpriteRenderer;
-import com.yori3o.everfall.mc.compat.GuiDraw;
-import com.yori3o.everfall.mc.compat.ProfileResourceReload;
-import com.yori3o.everfall.mc.compat.SoundCuePlayer;
-import com.yori3o.everfall.mc.compat.WindowMode;
-import com.mojang.blaze3d.platform.Window;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 
+import com.yori3o.everfall.core.api.FrameInput;
+import com.yori3o.everfall.core.api.FrameOutput;
+import com.yori3o.everfall.core.config.PixelMode;
+import com.yori3o.everfall.core.engine.AdditionalParticleSystem;
+import com.yori3o.everfall.core.engine.BasicParticleEngine;
+import com.yori3o.everfall.mc.compat.ActiveScreen;
+import com.yori3o.everfall.mc.compat.DebugParticleCount;
+import com.yori3o.everfall.mc.compat.GuiDraw;
+import com.yori3o.everfall.mc.compat.ProfileResourceReload;
+import com.yori3o.everfall.mc.compat.SoundCuePlayer;
+import com.yori3o.everfall.mc.compat.SpriteRenderer;
+import com.yori3o.everfall.mc.compat.WindowMode;
+
+import com.mojang.blaze3d.platform.Window;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.Screen;
+
 public final class ClientRuntime {
+
     private static final ClientInputCollector INPUT_COLLECTOR = new ClientInputCollector();
     private static final BasicParticleEngine ENGINE = new BasicParticleEngine();
     private static final SpriteRenderer RENDERER = new SpriteRenderer();
@@ -37,6 +42,8 @@ public final class ClientRuntime {
     private static boolean previousFullscreen;
     private static PixelMode previousPixelMode = PixelMode.DISPLAY;
     private static boolean backgroundRendered;
+    private static int liveParticleCount;
+    private static boolean particleSceneActive;
     private static int frameMouseX;
     private static int frameMouseY;
 
@@ -47,19 +54,34 @@ public final class ClientRuntime {
         if (initialized) {
             return;
         }
+
         ModConfigBootstrap.initialize(configDirectory);
         additionalParticles = new AdditionalParticleSystem(AdditionalProfileRegistry.profiles());
-        resetParticles();
+        resetEngines();
         previousFrameNanos = System.nanoTime();
         initialized = true;
         ProfileResources.initialize(configDirectory);
         ProfileResourceReload.install();
     }
 
+    /** -1 means this screen has no active Everfall scene. */
+    public static int particleCount() {
+        if (!initialized || !particleSceneActive) return -1;
+
+        var client = Minecraft.getInstance();
+        var config = ModConfigBootstrap.config();
+        Screen current = ActiveScreen.current();
+
+        if (current == null || current != previousScreen || !config.enabled
+                || (client.level != null && !config.showInWorld)) return -1;
+        return liveParticleCount;
+    }
+
     public static void profilesReloaded() {
         if (!initialized) return;
+
         additionalParticles = new AdditionalParticleSystem(AdditionalProfileRegistry.profiles());
-        resetParticles();
+        resetEngines();
         INPUT_COLLECTOR.resetScreenState();
         screenChanged = true;
         previousFrameNanos = System.nanoTime();
@@ -69,12 +91,15 @@ public final class ClientRuntime {
         if (button < 0 || button >= Integer.SIZE) {
             return;
         }
+
         int buttonMask = 1 << button;
+
         if (action == 1) {
             mouseButtonMask |= buttonMask;
         } else if (action == 0) {
             mouseButtonMask &= ~buttonMask;
         }
+
         mouseDown = mouseButtonMask != 0;
     }
 
@@ -82,6 +107,7 @@ public final class ClientRuntime {
         if (!initialized || screen == null) {
             return;
         }
+
         ProfileResourceReload.install();
         backgroundRendered = false;
         frameMouseX = mouseX;
@@ -92,26 +118,25 @@ public final class ClientRuntime {
         boolean fullscreen = WindowMode.isFullscreen();
         PixelMode pixelMode = ModConfigBootstrap.config().pixelMode;
         boolean pixelModeChanged = previousPixelMode != pixelMode;
-        if (previousScreen != screen || pixelModeChanged) {
+        boolean dimensionsChanged = previousScreenWidth >= 0 && (screen.width != previousScreenWidth
+                || screen.height != previousScreenHeight || windowWidth != previousWindowWidth
+                || windowHeight != previousWindowHeight || fullscreen != previousFullscreen);
+
+        if (previousScreen != screen || pixelModeChanged || dimensionsChanged) {
             screenChanged = true;
-            if (pixelModeChanged) {
-                resetParticles();
+
+            if (pixelModeChanged || dimensionsChanged) {
+                resetEngines();
             } else {
                 ENGINE.clearGrounded();
             }
-            INPUT_COLLECTOR.resetScreenState();
-            mouseButtonMask = 0;
-            mouseDown = false;
-            previousFrameNanos = System.nanoTime();
-        } else if (previousScreenWidth >= 0 && (screen.width != previousScreenWidth
-                || screen.height != previousScreenHeight || windowWidth != previousWindowWidth
-                || windowHeight != previousWindowHeight || fullscreen != previousFullscreen)) {
-            resetParticles();
+
             INPUT_COLLECTOR.resetScreenState();
             mouseButtonMask = 0;
             mouseDown = false;
             previousFrameNanos = System.nanoTime();
         }
+
         previousScreen = screen;
         previousScreenWidth = screen.width;
         previousScreenHeight = screen.height;
@@ -122,24 +147,34 @@ public final class ClientRuntime {
         INPUT_COLLECTOR.beginFrame(screen, pixelMode);
     }
 
-    public static void captureWidget(AbstractWidget widget) {
+    public static void captureLogo(int screenWidth, int top, float alpha, Object graphics) {
         if (initialized && ModConfigBootstrap.config().canInteract()) {
-            INPUT_COLLECTOR.captureWidget(widget);
+            INPUT_COLLECTOR.captureLogo(screenWidth, top, alpha, graphics);
+        }
+    }
+
+    public static void captureWidget(AbstractWidget widget, Object graphics) {
+        if (initialized && ModConfigBootstrap.config().canInteract()) {
+            INPUT_COLLECTOR.captureWidget(widget, graphics);
         }
     }
 
     public static void render(Screen screen, Object graphics, int mouseX, int mouseY) {
         if (initialized && ModConfigBootstrap.config().backgroundParticles) {
             INPUT_COLLECTOR.finishFrame();
-            return;
+        } else {
+            renderParticles(screen, graphics, mouseX, mouseY);
         }
-        renderParticles(screen, graphics, mouseX, mouseY);
+
+        if (initialized) DebugParticleCount.renderMenu(graphics);
     }
 
     public static void renderBackground(Screen screen, Object graphics) {
         if (!initialized || !ModConfigBootstrap.config().backgroundParticles || backgroundRendered) return;
+
         backgroundRendered = true;
         GuiDraw.backgroundLayerBoundary(graphics);
+
         try {
             renderParticles(screen, graphics, frameMouseX, frameMouseY);
         } finally {
@@ -151,6 +186,7 @@ public final class ClientRuntime {
         if (!initialized || screen == null) {
             return;
         }
+
         long now = System.nanoTime();
         float deltaSeconds = Math.min((now - previousFrameNanos) / 1_000_000_000.0f, 0.1f);
         previousFrameNanos = now;
@@ -160,23 +196,34 @@ public final class ClientRuntime {
         input.screenChanged = screenChanged;
         screenChanged = false;
         INPUT_COLLECTOR.finishFrame();
+
         if (localTime == null || now >= nextTimeCheckNanos) {
             localTime = LocalDateTime.now();
             nextTimeCheckNanos = now + 1_000_000_000L;
         }
+
         additionalParticles.step(input, localTime);
         FrameOutput output = ENGINE.step(input);
+        liveParticleCount = output.sprites.count + additionalParticles.particleCount();
+        particleSceneActive = input.config.enabled && (!input.inWorld || input.config.showInWorld)
+                && input.screenWidth > 0 && input.screenHeight > 0
+                && (!input.profile.textures().isEmpty() || liveParticleCount > 0);
         RENDERER.draw(graphics, output.sprites, input.profile, input.coordinateScale);
+
         for (int i = 0; i < additionalParticles.layers().size(); i++) {
             var layer = additionalParticles.layers().get(i);
+
             if (layer.active()) {
                 RENDERER.draw(graphics, layer.sprites(), input.profile, input.coordinateScale);
             }
         }
+
         SoundCuePlayer.play(output.sounds, input.config.masterVolume / 100.0f);
     }
 
-    private static void resetParticles() {
+    private static void resetEngines() {
+        liveParticleCount = 0;
+        particleSceneActive = false;
         ENGINE.reset(0x4556455246414c4cL);
         additionalParticles.reset(0x46495245464c4945L);
     }

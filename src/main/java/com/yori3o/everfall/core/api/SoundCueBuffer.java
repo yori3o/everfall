@@ -3,6 +3,7 @@ package com.yori3o.everfall.core.api;
 import java.util.Arrays;
 
 public final class SoundCueBuffer {
+
     public static final byte SWEEP = 0;
     public static final byte CAPTURE = 1;
     public static final byte SHORT_SWEEP = 2;
@@ -28,6 +29,7 @@ public final class SoundCueBuffer {
         if (capacity <= soundIds.length) {
             return;
         }
+
         soundIds = Arrays.copyOf(soundIds, capacity);
         particleIds = Arrays.copyOf(particleIds, capacity);
         volumes = Arrays.copyOf(volumes, capacity);

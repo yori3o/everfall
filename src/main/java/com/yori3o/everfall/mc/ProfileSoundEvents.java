@@ -1,12 +1,15 @@
 package com.yori3o.everfall.mc;
 
-import com.yori3o.everfall.mc.compat.Ids;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
+
+import com.yori3o.everfall.mc.compat.Ids;
+
 import net.minecraft.sounds.SoundEvent;
 
 public final class ProfileSoundEvents {
+
     private static final List<String> PATHS = List.of(
             "autumn.sweep", "autumn.capture", "winter.sweep", "winter.short_sweep", "winter.capture");
 
@@ -21,9 +24,12 @@ public final class ProfileSoundEvents {
 
     public static void reload() {
         CLIENT_EVENTS.clear();
+
         for (var profile : ParticleProfileRegistry.profiles()) {
             for (String id : profile.sweepSounds()) get(id);
+
             for (String id : profile.shortSweepSounds()) get(id);
+
             for (String id : profile.captureSounds()) get(id);
         }
     }

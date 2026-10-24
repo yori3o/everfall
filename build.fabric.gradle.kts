@@ -110,7 +110,6 @@ tasks {
             register("version", sc.properties["mod.version"])
             register("minecraft", sc.properties["mod.mc_compat"])
             register("loader", Regex("\\d+\\.\\d+").find(sc.properties.get<String>("deps.fabric_loader"))!!.value)
-            register("yacl", sc.properties.get<String>("deps.yacl").substringBefore('+'))
         }
 
         filesMatching("fabric.mod.json") { expand(props) }

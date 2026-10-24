@@ -1,14 +1,17 @@
 package com.yori3o.everfall.mc;
 
+import java.nio.file.Path;
+
 import com.yori3o.everfall.core.config.ModConfig;
 import com.yori3o.everfall.core.config.PixelMode;
 import com.yori3o.everfall.core.profile.ParticleProfile;
 import com.yori3o.everfall.mc.compat.Ids;
+
 import dev.isxander.yacl3.config.v2.api.ConfigClassHandler;
 import dev.isxander.yacl3.config.v2.api.serializer.GsonConfigSerializerBuilder;
-import java.nio.file.Path;
 
 public final class ModConfigBootstrap {
+
     private static ConfigClassHandler<ModConfig> handler;
 
     private ModConfigBootstrap() {
@@ -18,6 +21,7 @@ public final class ModConfigBootstrap {
         if (handler != null) {
             return;
         }
+
         ParticleProfileRegistry.load(configDirectory);
         AdditionalProfileRegistry.load(configDirectory);
         handler = ConfigClassHandler.createBuilder(ModConfig.class)
@@ -28,17 +32,24 @@ public final class ModConfigBootstrap {
                         .build())
                 .build();
         handler.load();
+        handler.instance().maxParticles = ModConfig.clampParticleCount(handler.instance().maxParticles);
+
         if (handler.instance().backgroundParticles) handler.instance().interactionEnabled = false;
+
         if (handler.instance().additionalProfiles == null) {
             handler.instance().additionalProfiles = new java.util.ArrayList<>(java.util.List.of("fireflies"));
         }
+
         if (handler.instance().profile == null) {
             handler.instance().profile = "autumn";
         }
+
         handler.instance().profile = handler.instance().profile.toLowerCase(java.util.Locale.ROOT);
+
         if (handler.instance().pixelMode == null) {
             handler.instance().pixelMode = PixelMode.DISPLAY;
         }
+
         SeasonalProfileSelector.select(handler.instance());
     }
 
@@ -46,6 +57,7 @@ public final class ModConfigBootstrap {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
+
         return handler.instance();
     }
 
@@ -53,6 +65,7 @@ public final class ModConfigBootstrap {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
+
         return handler;
     }
 
@@ -60,6 +73,7 @@ public final class ModConfigBootstrap {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
+
         ModConfig config = handler.instance();
         String selected = SeasonalProfileSelector.select(config);
         return ParticleProfileRegistry.get(selected);
@@ -69,8 +83,11 @@ public final class ModConfigBootstrap {
         if (handler == null) {
             throw new IllegalStateException("Everfall config has not been initialized");
         }
+
         ModConfig config = handler.instance();
         SeasonalProfileSelector.select(config);
+
+        config.maxParticles = ModConfig.clampParticleCount(config.maxParticles);
         if (config.backgroundParticles) config.interactionEnabled = false;
         handler.save();
     }

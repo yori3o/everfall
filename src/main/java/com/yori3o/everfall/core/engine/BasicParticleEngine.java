@@ -1,26 +1,31 @@
 package com.yori3o.everfall.core.engine;
 
+import java.util.Arrays;
+import java.util.List;
+
 import com.yori3o.everfall.core.api.FrameInput;
 import com.yori3o.everfall.core.api.FrameOutput;
 import com.yori3o.everfall.core.api.ParticleEngine;
 import com.yori3o.everfall.core.api.SoundCueBuffer;
+import com.yori3o.everfall.core.config.ModConfig;
 import com.yori3o.everfall.core.profile.ParticleProfile;
-import java.util.Arrays;
-import java.util.List;
 
 public final class BasicParticleEngine implements ParticleEngine {
+
     private static final byte FRONT_LAYER = 1;
     private static final float CURSOR_RADIUS = 36.0f;
     private static final float LANDING_CHANCE = 0.5f;
     private static final float LANDED_LIFETIME = 12.0f;
     private static final float SWEPT_LIFETIME = 10.0f;
     private static final float DRAGGED_LIFETIME = 60.0f;
+
     private static final float AIR_RESISTANCE = 0.65f;
     private static final float SWEEP_IMPULSE_PER_SECOND = 10.8f;
     private static final float MAX_SWEEP_IMPULSE_PER_SECOND = 5400.0f;
     private static final float GROUNDED_SWEEP_FACTOR = 0.5f;
     private static final float GROUNDED_WIND_RESPONSE = 3.0f;
     private static final float GROUNDED_WIND_SPEED = 0.05f;
+
     private static final float WIND_RELEASE_INTERVAL = 2.0f;
     private static final float WIND_LIFT_SPEED = 18.0f;
     private static final float MIN_SWEEP_SPEED = 160.0f;
@@ -28,10 +33,16 @@ public final class BasicParticleEngine implements ParticleEngine {
     private static final float GUST_AMPLITUDE = 0.4f;
     private static final float WIND_FOR_MAX_SIDE_SPAWN = 80.0f;
     private static final float MAX_SIDE_SPAWN_SHARE = 0.45f;
-    private static final float INITIAL_SCREEN_FILL = 0.5f;
+    private static final float ZERO_GRAVITY_UPWIND_SECONDS = 4.0f;
+
+    private static final float INITIAL_SCREEN_FILL = 0.95f;
+    private static final float POPULATION_RECOVERY_RATE = 0.1f;
+    private static final float POPULATION_LOSS_SMOOTHING_SECONDS = 5.0f;
+
     private static final float MAX_SWEEP_AIR_RESISTANCE = 0.4f;
     private static final float SWEEP_RESISTANCE_PER_SPEED = 0.0004f;
     private static final float SWEEP_RESISTANCE_DECAY = 0.8f;
+
     private static final float MIN_SWAY_AMPLITUDE = 5.0f;
     private static final float MAX_SWAY_AMPLITUDE = 18.0f;
     private static final float MIN_SWAY_FREQUENCY = 1.2f;
@@ -39,7 +50,10 @@ public final class BasicParticleEngine implements ParticleEngine {
     private static final float SWAY_SPEED_FACTOR = 0.45f;
     private static final float SWEPT_SWAY_FACTOR = 0.08f;
     private static final float SWAY_TRANSITION_SECONDS = 0.4f;
+
     private static final float FADE_OUT_SECONDS = 1.5f;
+    private static final float CALM_MIN_LIFETIME = 4.0f;
+    private static final float CALM_MAX_LIFETIME = 7.0f;
     private static final float FADE_IN_SECONDS = 0.75f;
     private static final float EDGE_FADE_DISTANCE = 48.0f;
     private static final float DRAG_CAPTURE_RADIUS = 18.0f;
@@ -50,6 +64,7 @@ public final class BasicParticleEngine implements ParticleEngine {
     private float[] velocityY = new float[0];
     private float[] width = new float[0];
     private float[] height = new float[0];
+
     private float[] lifetime = new float[0];
     private float[] fadeInProgress = new float[0];
     private double[] windReleaseTimer = new double[0];
@@ -57,23 +72,29 @@ public final class BasicParticleEngine implements ParticleEngine {
     private float[] swayAmplitude = new float[0];
     private float[] swayFrequency = new float[0];
     private float[] swayFactor = new float[0];
+
     private double[] animationTimer = new double[0];
     private double[] alternativeCooldownAge = new double[0];
     private boolean[] alternativeAnimation = new boolean[0];
+
     private int[] textureIndex = new int[0];
     private int[] frameIndex = new int[0];
     private long[] particleIds = new long[0];
     private int[] supportIds = new int[0];
     private float[] phase = new float[0];
     private boolean[] grounded = new boolean[0];
+
     private final FrameOutput output = new FrameOutput();
     private int count;
     private float spawnAccumulator;
+    private float estimatedLossRate;
     private long randomState = 1;
     private long nextParticleId;
+
     private long draggedParticleId = -1;
     private float dragOffsetX;
     private float dragOffsetY;
+
     private float pendingSweepStartX;
     private float pendingSweepStartY;
     private float pendingSweepEndX;
@@ -81,6 +102,7 @@ public final class BasicParticleEngine implements ParticleEngine {
     private float pendingSweepDuration;
     private boolean pendingSweep;
     private boolean previousMouseDown;
+
     private float gustOffset;
     private float gustStart;
     private float gustTarget;
@@ -94,6 +116,7 @@ public final class BasicParticleEngine implements ParticleEngine {
         count = 0;
         currentProfileId = null;
         spawnAccumulator = 0.0f;
+        estimatedLossRate = 0.0f;
         randomState = seed == 0 ? 1 : seed;
         draggedParticleId = -1;
         pendingSweep = false;
@@ -111,25 +134,31 @@ public final class BasicParticleEngine implements ParticleEngine {
         pendingSweep = false;
         pendingSweepDuration = 0.0f;
         int active = 0;
+
         for (int i = 0; i < count; i++) {
             if (grounded[i]) {
                 continue;
             }
+
             if (active != i) {
                 copy(i, active);
             }
+
             active++;
         }
+
         count = active;
     }
 
     @Override
     public FrameOutput step(FrameInput input) {
         output.clear();
+
         if (input.profile != null && input.profile.textures().isEmpty()) {
             // A profile rejected during loading must not spawn particles or retain its old interaction state.
             count = 0;
             spawnAccumulator = 0.0f;
+            estimatedLossRate = 0.0f;
             currentProfileId = null;
             draggedParticleId = -1;
             previousMouseDown = input.mouseDown;
@@ -137,6 +166,7 @@ public final class BasicParticleEngine implements ParticleEngine {
             pendingSweepDuration = 0.0f;
             return output;
         }
+
         if (input.config == null || !input.config.enabled || (input.inWorld && !input.config.showInWorld)
                 || input.screenWidth <= 0 || input.screenHeight <= 0) {
             pendingSweep = false;
@@ -146,8 +176,9 @@ public final class BasicParticleEngine implements ParticleEngine {
 
         float dt = Math.max(0.0f, Math.min(input.deltaSeconds, 0.1f));
         boolean interactive = input.config.canInteract();
+
         if (interactive) {
-            updatePendingSweep(input, dt);
+            trackSweep(input, dt);
         } else {
             pendingSweep = false;
             pendingSweepDuration = 0.0f;
@@ -155,26 +186,32 @@ public final class BasicParticleEngine implements ParticleEngine {
             previousMouseDown = input.mouseDown;
             Arrays.fill(grounded, 0, count, false);
         }
-        int particleLimit = Math.max(0, input.config.maxParticles);
+
+        int particleLimit = ModConfig.clampParticleCount(input.config.maxParticles);
+
         if (input.particleLimit >= 0) particleLimit = Math.min(particleLimit, input.particleLimit);
         ensureCapacity(particleLimit);
         count = Math.min(count, particleLimit);
         boolean profileChanged = !input.profile.id().equals(currentProfileId);
+
         if (profileChanged) {
             count = 0;
             spawnAccumulator = 0.0f;
+            estimatedLossRate = 0.0f;
             currentProfileId = input.profile.id();
             draggedParticleId = -1;
         }
-        if ((input.screenChanged || profileChanged) && count == 0) {
-            seedInitialScreenParticles(input, particleLimit);
+
+        if (input.profile.initialFill() && (input.screenChanged || profileChanged) && count == 0) {
+            fillScreen(input, particleLimit);
         }
+
         if (interactive) updateDragState(input);
         simulate(input, dt, particleLimit, pendingSweep);
         pendingSweep = false;
         pendingSweepDuration = 0.0f;
         output.sprites.flipX = input.profile.flipWithWind() && input.config.wind < 0;
-        emit(input);
+        writeSprites(input);
         return output;
     }
 
@@ -183,36 +220,49 @@ public final class BasicParticleEngine implements ParticleEngine {
         boolean invertedGravity = input.config.gravity < 0.0f;
         float gravityDirection = invertedGravity ? -1.0f : 1.0f;
         float windReleaseChance = windReleaseChance(input.config.wind);
-        spawnAccumulator += dt * particleLimit * 0.03f;
+        // Compensate measured departures, then gradually close any remaining population deficit.
+        float recoveryRate = POPULATION_RECOVERY_RATE;
+        float spawnRate = Math.max(particleLimit * 0.03f,
+                estimatedLossRate + (particleLimit - count) * recoveryRate);
+        spawnAccumulator += dt * spawnRate;
+
         if (count >= particleLimit) {
             spawnAccumulator = Math.min(spawnAccumulator, 1.0f);
         }
+
         while (spawnAccumulator >= 1.0f && count < particleLimit) {
             spawnAccumulator -= 1.0f;
             spawn(input, input.config.wind);
         }
+
         float cursorDeltaX = pendingSweepEndX - pendingSweepStartX;
         float cursorDeltaY = pendingSweepEndY - pendingSweepStartY;
         float cursorDistance = (float) Math.sqrt(cursorDeltaX * cursorDeltaX + cursorDeltaY * cursorDeltaY);
-        float cursorSpeed = pendingSweepDuration > 0.0f ? cursorDistance / pendingSweepDuration : 0.0f;
+        float cursorSpeed = pendingSweepDuration > 0.0f
+                ? cursorDistance / pendingSweepDuration / input.interactionScale : 0.0f;
+        float cursorRadius = CURSOR_RADIUS * input.interactionScale;
         float cursorDirectionX = cursorDistance > 0.0f ? cursorDeltaX / cursorDistance : 0.0f;
         float cursorDirectionY = cursorDistance > 0.0f ? cursorDeltaY / cursorDistance : 0.0f;
 
         int active = 0;
+
         for (int i = 0; i < count; i++) {
             fadeInProgress[i] = Math.min(1.0f, fadeInProgress[i] + dt / FADE_IN_SECONDS);
+
             if (particleIds[i] == draggedParticleId) {
                 windReleaseTimer[i] = 0;
                 alternativeCooldownAge[i] += dt;
                 updateSwayFactor(i, 0.0f, dt);
-                x[i] = input.cursorX + dragOffsetX - width[i] * 0.5f;
+                x[i] = input.cursorX + dragOffsetX - width[i] * 0.5f - swayOffset(i);
                 y[i] = input.cursorY + dragOffsetY - height[i] * 0.5f;
                 velocityX[i] = input.cursorVelocityX;
                 velocityY[i] = input.cursorVelocityY;
                 grounded[i] = false;
+
                 if (active != i) {
                     copy(i, active);
                 }
+
                 active++;
                 continue;
             }
@@ -220,12 +270,16 @@ public final class BasicParticleEngine implements ParticleEngine {
             if (grounded[i] && !containsObstacle(input, supportIds[i])) {
                 continue;
             }
+
             boolean windReleased = false;
+
             if (grounded[i] && windReleaseChance > 0.0f
                     && lifetime[i] - dt > Math.max(FADE_OUT_SECONDS, WIND_RELEASE_INTERVAL)) {
                 windReleaseTimer[i] += dt;
+
                 if (windReleaseTimer[i] >= WIND_RELEASE_INTERVAL) {
                     windReleaseTimer[i] -= WIND_RELEASE_INTERVAL;
+
                     if (nextFloat() < windReleaseChance) {
                         grounded[i] = false;
                         supportIds[i] = Integer.MIN_VALUE;
@@ -237,38 +291,51 @@ public final class BasicParticleEngine implements ParticleEngine {
             } else {
                 windReleaseTimer[i] = 0;
             }
-            if (grounded[i]) {
+
+            boolean calm = input.config.gravity == 0.0f && input.config.wind == 0.0f;
+
+            if (calm) lifetime[i] = Math.min(lifetime[i], CALM_MAX_LIFETIME);
+
+            if (calm || grounded[i] || lifetime[i] <= FADE_OUT_SECONDS) {
                 lifetime[i] -= dt;
+
                 if (lifetime[i] <= 0.0f) {
                     continue;
                 }
             }
 
-            float previousDrawX = x[i] + (float) Math.sin(phase[i]) * swayAmplitude[i] * swayFactor[i];
+            float previousDrawX = drawX(i);
             boolean swept = windReleased;
+
             if (applyCursorSweep && cursorSpeed > MIN_SWEEP_SPEED && input.cursorOnScreen) {
-                float distance = distanceToSegment(x[i] + width[i] * 0.5f, y[i] + height[i] * 0.5f,
+                float distance = distanceToSegment(previousDrawX + width[i] * 0.5f, y[i] + height[i] * 0.5f,
                         pendingSweepStartX, pendingSweepStartY, pendingSweepEndX, pendingSweepEndY);
-                if (distance < CURSOR_RADIUS) {
-                    float falloff = 1.0f - distance / CURSOR_RADIUS;
+
+                if (distance < cursorRadius) {
+                    float falloff = 1.0f - distance / cursorRadius;
                     float speedFactor = clamp((cursorSpeed - MIN_SWEEP_SPEED)
                             / (FULL_SWEEP_SPEED - MIN_SWEEP_SPEED), 0.0f, 1.0f);
+
                     if (speedFactor > 0.0f) {
                         float volume = grounded[i] ? 0.5f : 0.2f;
+
                         if (input.profile.shortSweepSounds().isEmpty()) {
-                            addSound(input.profile.sweepSounds(), SoundCueBuffer.SWEEP, particleIds[i], volume);
+                            queueSound(input.profile.sweepSounds(), SoundCueBuffer.SWEEP, i, volume, input);
                         } else {
-                            addSound(input.profile.shortSweepSounds(), SoundCueBuffer.SHORT_SWEEP, particleIds[i], volume);
+                            queueSound(input.profile.shortSweepSounds(), SoundCueBuffer.SHORT_SWEEP, i, volume, input);
+
                             if (grounded[i]) {
-                                addSound(input.profile.sweepSounds(), SoundCueBuffer.SWEEP, particleIds[i], volume);
+                                queueSound(input.profile.sweepSounds(), SoundCueBuffer.SWEEP, i, volume, input);
                             }
                         }
                     }
+
                     if (grounded[i]) {
                         float sweepImpulse = Math.min(cursorSpeed * SWEEP_IMPULSE_PER_SECOND,
-                                MAX_SWEEP_IMPULSE_PER_SECOND) * dt
+                                MAX_SWEEP_IMPULSE_PER_SECOND) * dt * input.interactionScale
                                 * GROUNDED_SWEEP_FACTOR * falloff * speedFactor;
                         velocityX[i] += cursorDirectionX * sweepImpulse;
+
                         if (cursorDirectionY * gravityDirection < -0.1f) {
                             velocityY[i] += cursorDirectionY * sweepImpulse;
                             grounded[i] = false;
@@ -279,7 +346,7 @@ public final class BasicParticleEngine implements ParticleEngine {
                         }
                     } else {
                         float sweepImpulse = Math.min(cursorSpeed * SWEEP_IMPULSE_PER_SECOND,
-                                MAX_SWEEP_IMPULSE_PER_SECOND) * dt
+                                MAX_SWEEP_IMPULSE_PER_SECOND) * dt * input.interactionScale
                                 * falloff * speedFactor;
                         velocityX[i] += cursorDirectionX * sweepImpulse;
                         velocityY[i] += cursorDirectionY * sweepImpulse;
@@ -288,7 +355,10 @@ public final class BasicParticleEngine implements ParticleEngine {
                         grounded[i] = false;
                         swept = true;
                     }
-                    lifetime[i] = Math.max(lifetime[i], SWEPT_LIFETIME);
+
+                    if (lifetime[i] > FADE_OUT_SECONDS) {
+                        lifetime[i] = Math.max(lifetime[i], SWEPT_LIFETIME);
+                    }
                 }
             }
 
@@ -297,6 +367,7 @@ public final class BasicParticleEngine implements ParticleEngine {
             }
 
             float previousY = y[i];
+
             if (grounded[i]) {
                 float friction = (float) Math.exp(-GROUNDED_WIND_RESPONSE * dt);
                 float windDrift = clamp(wind * GROUNDED_WIND_SPEED, -2.0f, 2.0f);
@@ -308,6 +379,7 @@ public final class BasicParticleEngine implements ParticleEngine {
                 velocityX[i] *= airDrag;
                 velocityY[i] = velocityY[i] * airDrag + input.config.gravity * dt;
             }
+
             velocityX[i] = clamp(velocityX[i], -180.0f, 180.0f);
             velocityY[i] = clamp(velocityY[i], -120.0f, 120.0f);
             float nextX = x[i] + (velocityX[i] + (grounded[i] ? 0.0f : wind)) * dt;
@@ -321,15 +393,19 @@ public final class BasicParticleEngine implements ParticleEngine {
             float nextDrawX = nextX + (float) Math.sin(nextPhase) * swayAmplitude[i] * swayFactor[i];
             float landingY = Float.POSITIVE_INFINITY;
             int landingObstacleId = Integer.MIN_VALUE;
+            ParticleProfile.Texture collisionTexture = input.profile.textures().get(textureIndex[i]);
+            float leadingOffset = landingOffset(input.profile, i, invertedGravity);
+
             if (input.config.canInteract() && !grounded[i] && !swept
-                    && velocityY[i] * gravityDirection >= 0.0f) {
+                    && velocityY[i] * gravityDirection >= 0.0f
+                    && collisionTexture.hasVisiblePixels(alternativeAnimation[i], frameIndex[i])) {
                 for (int obstacle = 0; obstacle < input.obstacles.count(); obstacle++) {
                     // Project the leading particle edge and widget face onto the gravity direction.
                     float obstacleY = gravityDirection * (input.obstacles.yAt(obstacle)
                             + (invertedGravity ? input.obstacles.heightAt(obstacle) : 0.0f));
                     float obstacleLeft = input.obstacles.xAt(obstacle);
                     float obstacleRight = obstacleLeft + input.obstacles.widthAt(obstacle);
-                    float leadingOffset = invertedGravity ? 0.0f : height[i];
+
                     if (gravityDirection * (previousY + leadingOffset) <= obstacleY
                             && gravityDirection * (nextY + leadingOffset) >= obstacleY
                             && Math.max(previousDrawX, nextDrawX) + width[i] >= obstacleLeft
@@ -340,14 +416,20 @@ public final class BasicParticleEngine implements ParticleEngine {
                     }
                 }
             }
+
             boolean landed = landingY < Float.POSITIVE_INFINITY && nextFloat() < LANDING_CHANCE;
             x[i] = landed ? nextDrawX : nextX;
-            y[i] = landed ? gravityDirection * landingY - (invertedGravity ? 0.0f : height[i]) : nextY;
+            y[i] = landed ? gravityDirection * landingY - leadingOffset : nextY;
+
             if (landed) {
                 velocityY[i] = 0.0f;
                 grounded[i] = true;
                 supportIds[i] = landingObstacleId;
-                lifetime[i] = Math.max(lifetime[i], LANDED_LIFETIME);
+
+                if (lifetime[i] > FADE_OUT_SECONDS) {
+                    lifetime[i] = Math.max(lifetime[i], LANDED_LIFETIME);
+                }
+
                 windReleaseTimer[i] = 0;
                 phase[i] = 0.0f;
             } else if (landingY < Float.POSITIVE_INFINITY) {
@@ -357,25 +439,50 @@ public final class BasicParticleEngine implements ParticleEngine {
                 grounded[i] = false;
                 supportIds[i] = Integer.MIN_VALUE;
             }
+
             if (!landed) {
                 phase[i] = nextPhase;
             }
+
             if (!grounded[i]) {
                 advanceAnimation(i, dt, input.profile);
+
+                if (lifetime[i] <= 0.0f) continue;
+
                 updateDimensions(i, input.profile.textures().get(textureIndex[i]), input.coordinateScale);
             } else {
                 alternativeCooldownAge[i] += dt;
             }
-            if ((!invertedGravity && y[i] >= input.screenHeight + height[i]) || x[i] < -width[i]
-                    || x[i] >= input.screenWidth + width[i]
+            // Offset spawn lines may begin outside the upwind edge; retain particles approaching the screen.
+            boolean approachingFromLeft = input.profile.offsetSpawnWithWind() && input.config.wind > 0.0f
+                    && velocityX[i] + wind > 0.0f;
+            boolean approachingFromRight = input.profile.offsetSpawnWithWind() && input.config.wind < 0.0f
+                    && velocityX[i] + wind < 0.0f;
+
+            if ((!invertedGravity && y[i] >= input.screenHeight + height[i])
+                    || (x[i] < -width[i] && !approachingFromLeft)
+                    || (x[i] >= input.screenWidth + width[i] && !approachingFromRight)
                     || (input.config.gravity <= 0.0f && y[i] < -height[i])) {
                 continue;
             }
+
             if (active != i) {
                 copy(i, active);
             }
+
             active++;
         }
+
+        if (dt > 0.0f) {
+            float smoothing = 1.0f - (float) Math.exp(-dt / POPULATION_LOSS_SMOOTHING_SECONDS);
+            estimatedLossRate += ((count - active) / dt - estimatedLossRate) * smoothing;
+        }
+
+        if (particleLimit == 0) {
+            spawnAccumulator = 0.0f;
+            estimatedLossRate = 0.0f;
+        }
+
         count = active;
     }
 
@@ -383,6 +490,7 @@ public final class BasicParticleEngine implements ParticleEngine {
         if (capacity <= x.length) {
             return;
         }
+
         x = Arrays.copyOf(x, capacity);
         y = Arrays.copyOf(y, capacity);
         velocityX = Arrays.copyOf(velocityX, capacity);
@@ -409,23 +517,29 @@ public final class BasicParticleEngine implements ParticleEngine {
         output.sounds.ensureCapacity(Math.multiplyExact(capacity, 2));
     }
 
-    private void emit(FrameInput input) {
+    private void writeSprites(FrameInput input) {
         boolean zeroGravity = input.config.gravity == 0.0f;
         float edgeFadeDistance = Math.min(EDGE_FADE_DISTANCE,
                 Math.min(input.screenWidth, input.screenHeight) * 0.1f);
+
         for (int i = 0; i < count; i++) {
             float alpha = clamp(lifetime[i] / FADE_OUT_SECONDS, 0.0f, 1.0f);
             float sway = (float) Math.sin(phase[i]) * swayAmplitude[i] * swayFactor[i];
-            float fadeIn = fadeInProgress[i];
+            float fadeIn = zeroGravity && input.config.wind != 0.0f ? 1.0f : fadeInProgress[i];
             alpha *= fadeIn * fadeIn * (3.0f - 2.0f * fadeIn);
+
             if (zeroGravity) {
                 float centerX = x[i] + sway + width[i] * 0.5f;
                 float centerY = y[i] + height[i] * 0.5f;
-                float distance = Math.min(Math.min(centerX, input.screenWidth - centerX),
+                float horizontalDistance = input.config.wind == 0.0f
+                        ? Math.min(centerX, input.screenWidth - centerX)
+                        : (input.config.wind > 0.0f ? input.screenWidth - centerX : centerX);
+                float distance = Math.min(horizontalDistance,
                         Math.min(centerY, input.screenHeight - centerY));
                 float edge = clamp(distance / edgeFadeDistance, 0.0f, 1.0f);
                 alpha *= edge * edge * (3.0f - 2.0f * edge);
             }
+
             output.sprites.add(x[i] + sway, y[i], width[i], height[i], phase[i], alpha, 0xffffffff, FRONT_LAYER,
                     textureIndex[i], frameIndex[i], alternativeAnimation[i]);
         }
@@ -433,24 +547,32 @@ public final class BasicParticleEngine implements ParticleEngine {
 
     private void spawn(FrameInput input, float configuredWind) {
         int index = count++;
-        initializeParticle(input, index);
+        initParticle(input, index);
+        boolean offsetWithWind = input.profile.offsetSpawnWithWind() && configuredWind != 0.0f;
+
         if (input.config.gravity == 0.0f) {
-            x[index] = nextFloat() * Math.max(0.0f, input.screenWidth - width[index]);
-            y[index] = nextFloat() * Math.max(0.0f, input.screenHeight - height[index]);
-            velocityX[index] = (nextFloat() - 0.5f) * 8.0f;
+            x[index] = offsetWithWind ? spawnX(input, configuredWind)
+                    : configuredWind == 0.0f
+                    ? nextFloat() * Math.max(0.0f, input.screenWidth - width[index])
+                    : (configuredWind > 0.0f ? -width[index] : input.screenWidth);
+            y[index] = offsetWithWind ? (input.screenHeight - height[index]) * 0.5f
+                    : nextFloat() * Math.max(0.0f, input.screenHeight - height[index]);
+            velocityX[index] = configuredWind == 0.0f ? (nextFloat() - 0.5f) * 8.0f : 0.0f;
             velocityY[index] = (nextFloat() - 0.5f) * 8.0f;
             return;
         }
+
         float sideSpawnShare = MAX_SIDE_SPAWN_SHARE
                 * clamp(Math.abs(configuredWind) / WIND_FOR_MAX_SIDE_SPAWN, 0.0f, 1.0f);
         float gravityDirection = input.config.gravity < 0.0f ? -1.0f : 1.0f;
-        if (configuredWind != 0.0f && nextFloat() < sideSpawnShare) {
-            x[index] = configuredWind > 0.0f ? -width[index] : input.screenWidth + width[index];
+
+        if (!offsetWithWind && configuredWind != 0.0f && nextFloat() < sideSpawnShare) {
+            x[index] = configuredWind > 0.0f ? -width[index] : input.screenWidth;
             y[index] = nextFloat() * input.screenHeight;
             velocityX[index] = 0.0f;
             velocityY[index] = gravityDirection * (2.0f + nextFloat() * 8.0f);
         } else {
-            x[index] = nextFloat() * input.screenWidth;
+            x[index] = offsetWithWind ? spawnX(input, configuredWind) : nextFloat() * input.screenWidth;
             float offset = nextFloat() * 24.0f;
             y[index] = gravityDirection < 0.0f ? input.screenHeight + offset : -height[index] - offset;
             velocityX[index] = (nextFloat() - 0.5f) * 8.0f;
@@ -458,11 +580,21 @@ public final class BasicParticleEngine implements ParticleEngine {
         }
     }
 
-    private void seedInitialScreenParticles(FrameInput input, int particleLimit) {
+    private float spawnX(FrameInput input, float wind) {
+        float gravity = Math.abs(input.config.gravity);
+        // Allow for vertical acceleration and drag, including the engine's vertical speed cap.
+        float travelSeconds = gravity == 0.0f ? ZERO_GRAVITY_UPWIND_SECONDS
+                : input.screenHeight / Math.min(120.0f, gravity / AIR_RESISTANCE) + 1.0f / AIR_RESISTANCE;
+        float extension = Math.abs(wind) * travelSeconds;
+        return nextFloat() * (input.screenWidth + extension) - (wind > 0.0f ? extension : 0.0f);
+    }
+
+    private void fillScreen(FrameInput input, int particleLimit) {
         int initialCount = Math.round(particleLimit * INITIAL_SCREEN_FILL);
+
         for (int i = 0; i < initialCount; i++) {
             int index = count++;
-            initializeParticle(input, index);
+            initParticle(input, index);
             x[index] = nextFloat() * Math.max(0.0f, input.screenWidth - width[index]);
             y[index] = nextFloat() * Math.max(0.0f, input.screenHeight - height[index]);
             velocityX[index] = (nextFloat() - 0.5f) * 8.0f;
@@ -472,16 +604,20 @@ public final class BasicParticleEngine implements ParticleEngine {
         }
     }
 
-    private void initializeParticle(FrameInput input, int index) {
+    private void initParticle(FrameInput input, int index) {
         textureIndex[index] = input.profile.chooseTexture(nextDouble());
         ParticleProfile.Texture texture = input.profile.textures().get(textureIndex[index]);
         width[index] = texture.frameWidth() * texture.scale() * input.coordinateScale;
         height[index] = texture.frameHeight() * texture.scale() * input.coordinateScale;
-        lifetime[index] = 8.0f + nextFloat() * 6.0f;
-        fadeInProgress[index] = input.config.gravity == 0.0f ? 0.0f : 1.0f;
+        lifetime[index] = input.config.gravity == 0.0f && input.config.wind == 0.0f
+                ? CALM_MIN_LIFETIME + nextFloat() * (CALM_MAX_LIFETIME - CALM_MIN_LIFETIME)
+                : 8.0f + nextFloat() * 6.0f;
+        fadeInProgress[index] = input.config.gravity == 0.0f && input.config.wind == 0.0f ? 0.0f : 1.0f;
         windReleaseTimer[index] = 0;
         swayAmplitude[index] = MIN_SWAY_AMPLITUDE
                 + nextFloat() * (MAX_SWAY_AMPLITUDE - MIN_SWAY_AMPLITUDE);
+
+        if (!input.profile.sway()) swayAmplitude[index] = 0.0f;
         swayFactor[index] = 1.0f;
         swayFrequency[index] = MIN_SWAY_FREQUENCY
                 + nextFloat() * (MAX_SWAY_FREQUENCY - MIN_SWAY_FREQUENCY);
@@ -490,6 +626,12 @@ public final class BasicParticleEngine implements ParticleEngine {
         alternativeCooldownAge[index] = 0;
         alternativeAnimation[index] = false;
         frameIndex[index] = (int) (nextFloat() * texture.frameCount());
+
+        if (!texture.repeat()) {
+            frameIndex[index] = 0;
+            animationTimer[index] = 0;
+        }
+
         particleIds[index] = nextParticleId++;
         phase[index] = nextFloat() * 6.2831855f;
         grounded[index] = false;
@@ -523,41 +665,48 @@ public final class BasicParticleEngine implements ParticleEngine {
 
     private static float windReleaseChance(float configuredWind) {
         float speed = Math.abs(configuredWind);
+
         if (speed <= 100.0f) return 0.0f;
+
         return Math.min(1.0f, 0.1f + 0.1f * (float) Math.floor((speed - 100.0f) / 50.0f));
     }
 
     private void updateDragState(FrameInput input) {
         if (!input.mouseDown) {
             if (draggedParticleId >= 0) {
-                int index = findParticle(draggedParticleId);
+                int index = indexOfParticle(draggedParticleId);
+
                 if (index >= 0) {
                     lifetime[index] = Math.max(lifetime[index], DRAGGED_LIFETIME);
                     velocityX[index] = input.cursorVelocityX;
                     velocityY[index] = input.cursorVelocityY;
                     grounded[index] = false;
                 }
+
                 draggedParticleId = -1;
             }
         } else if (!previousMouseDown && input.cursorOnScreen) {
-            int index = findParticleToDrag(input);
+            int index = pickParticle(input);
+
             if (index >= 0) {
                 draggedParticleId = particleIds[index];
-                dragOffsetX = x[index] + width[index] * 0.5f - input.cursorX;
+                dragOffsetX = drawX(index) + width[index] * 0.5f - input.cursorX;
                 dragOffsetY = y[index] + height[index] * 0.5f - input.cursorY;
                 grounded[index] = false;
-                addSound(input.profile.captureSounds(), SoundCueBuffer.CAPTURE, particleIds[index], 0.55f);
+                queueSound(input.profile.captureSounds(), SoundCueBuffer.CAPTURE, index, 0.55f, input);
             }
         }
+
         previousMouseDown = input.mouseDown;
     }
 
-    private void updatePendingSweep(FrameInput input, float dt) {
+    private void trackSweep(FrameInput input, float dt) {
         if (!input.cursorOnScreen) {
             pendingSweep = false;
             pendingSweepDuration = 0.0f;
             return;
         }
+
         if (input.cursorPathValid
                 && (input.cursorX != input.cursorPreviousX || input.cursorY != input.cursorPreviousY)) {
             if (!pendingSweep) {
@@ -566,16 +715,19 @@ public final class BasicParticleEngine implements ParticleEngine {
                 pendingSweepDuration = 0.0f;
                 pendingSweep = true;
             }
+
             pendingSweepEndX = input.cursorX;
             pendingSweepEndY = input.cursorY;
             pendingSweepDuration += dt;
         }
     }
 
-    private void addSound(List<String> soundIds, byte kind, long particleId, float volume) {
+    private void queueSound(List<String> soundIds, byte kind, int index, float volume, FrameInput input) {
         if (!soundIds.isEmpty()) {
             int soundIndex = (int) (nextFloat() * soundIds.size());
-            output.sounds.add(soundIds.get(soundIndex), volume, 1.0f, 0.0f, kind, particleId);
+            float centerX = drawX(index) + width[index] * 0.5f;
+            float pan = clamp(centerX / input.screenWidth - 0.5f, -0.5f, 0.5f);
+            output.sounds.add(soundIds.get(soundIndex), volume, 1.0f, pan, kind, particleIds[index]);
         }
     }
 
@@ -592,6 +744,19 @@ public final class BasicParticleEngine implements ParticleEngine {
     private void advanceAnimation(int index, float dt, ParticleProfile profile) {
         ParticleProfile.Texture texture = profile.textures().get(textureIndex[index]);
         double frameDuration = texture.frameTime() / 20.0;
+
+        if (!texture.repeat()) {
+            double position = frameIndex[index] * frameDuration + animationTimer[index] + dt;
+
+            if (position >= texture.frameCount() * frameDuration) {
+                lifetime[index] = 0;
+            } else {
+                setAnimationPosition(index, texture, frameDuration, position);
+            }
+
+            return;
+        }
+
         if (texture.alternativeAnimation() == null) {
             double position = (frameIndex[index] * frameDuration + animationTimer[index] + dt)
                     % (texture.frameCount() * frameDuration);
@@ -599,29 +764,36 @@ public final class BasicParticleEngine implements ParticleEngine {
             alternativeCooldownAge[index] += dt;
             return;
         }
+
         double remaining = dt;
         // Bound work for pathological profiles with extremely short frame durations.
         int transitions = 0;
+
         while (remaining > 0 && transitions < 64) {
             double untilEnd = (texture.frameCount() - frameIndex[index]) * frameDuration - animationTimer[index];
+
             if (remaining < untilEnd) {
                 setAnimationPosition(index, texture, frameDuration,
                         frameIndex[index] * frameDuration + animationTimer[index] + remaining);
                 alternativeCooldownAge[index] += remaining;
                 return;
             }
+
             remaining -= Math.max(0, untilEnd);
             alternativeCooldownAge[index] += Math.max(0, untilEnd);
             frameIndex[index] = 0;
             animationTimer[index] = 0;
+
             if (alternativeAnimation[index]) {
                 alternativeAnimation[index] = false;
                 alternativeCooldownAge[index] = 0;
-            } else if (texture.alternativeAnimation() != null && alternativeMatches(index, texture.alternativeAnimation())) {
+            } else if (texture.alternativeAnimation() != null && canPlayAlternative(index, texture.alternativeAnimation())) {
                 alternativeAnimation[index] = true;
             }
+
             transitions++;
         }
+
         if (remaining > 0) {
             alternativeAnimation[index] = false;
             alternativeCooldownAge[index] += remaining;
@@ -635,57 +807,87 @@ public final class BasicParticleEngine implements ParticleEngine {
         animationTimer[index] = position - frameIndex[index] * frameDuration;
     }
 
-    private boolean alternativeMatches(int index, ParticleProfile.AlternativeAnimation animation) {
+    private boolean canPlayAlternative(int index, ParticleProfile.AlternativeAnimation animation) {
         boolean both = animation.conditionType() == ParticleProfile.ConditionType.BOTH;
+
         for (int i = 0; i < animation.conditions().size(); i++) {
             ParticleProfile.AnimationCondition condition = animation.conditions().get(i);
             boolean matches = switch (condition.type()) {
                 case CHANCE -> nextDouble() < condition.value();
                 case COOLDOWN -> alternativeCooldownAge[index] >= condition.value();
             };
+
             if (both && !matches) return false;
+
             if (!both && matches) return true;
         }
+
         return both || animation.conditions().isEmpty();
     }
 
-    private int findParticleToDrag(FrameInput input) {
+    private int pickParticle(FrameInput input) {
         int closest = -1;
-        float closestDistanceSquared = DRAG_CAPTURE_RADIUS * DRAG_CAPTURE_RADIUS;
+        float radius = DRAG_CAPTURE_RADIUS * input.interactionScale;
+        float closestDistanceSquared = radius * radius;
+
         for (int i = 0; i < count; i++) {
-            float dx = input.cursorX - (x[i] + width[i] * 0.5f);
+            float dx = input.cursorX - (drawX(i) + width[i] * 0.5f);
             float dy = input.cursorY - (y[i] + height[i] * 0.5f);
             float distanceSquared = dx * dx + dy * dy;
+
             if (distanceSquared < closestDistanceSquared) {
                 closest = i;
                 closestDistanceSquared = distanceSquared;
             }
         }
+
         return closest;
     }
 
-    private int findParticle(long id) {
+    private float swayOffset(int index) {
+        return (float) Math.sin(phase[index]) * swayAmplitude[index] * swayFactor[index];
+    }
+
+    private float drawX(int index) {
+        return x[index] + swayOffset(index);
+    }
+
+    private int indexOfParticle(long id) {
         for (int i = 0; i < count; i++) {
             if (particleIds[i] == id) {
                 return i;
             }
         }
+
         return -1;
+    }
+
+    private float landingOffset(ParticleProfile profile, int index, boolean invertedGravity) {
+        ParticleProfile.Texture texture = profile.textures().get(textureIndex[index]);
+        return texture.contactEdge(alternativeAnimation[index], frameIndex[index], invertedGravity)
+                * (height[index] / texture.frameHeight(alternativeAnimation[index]));
     }
 
     private boolean hasSupport(FrameInput input, int particle) {
         boolean invertedGravity = input.config.gravity < 0.0f;
-        float edge = y[particle] + (invertedGravity ? 0.0f : height[particle]);
+        ParticleProfile.Texture texture = input.profile.textures().get(textureIndex[particle]);
+
+        if (!texture.hasVisiblePixels(alternativeAnimation[particle], frameIndex[particle])) return false;
+
+        float edge = y[particle] + landingOffset(input.profile, particle, invertedGravity);
+
         for (int obstacle = 0; obstacle < input.obstacles.count(); obstacle++) {
             float obstacleY = input.obstacles.yAt(obstacle)
                     + (invertedGravity ? input.obstacles.heightAt(obstacle) : 0.0f);
             float obstacleLeft = input.obstacles.xAt(obstacle);
             float obstacleRight = obstacleLeft + input.obstacles.widthAt(obstacle);
+
             if (Math.abs(edge - obstacleY) <= 1.5f && x[particle] + width[particle] > obstacleLeft
                     && x[particle] < obstacleRight) {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -695,6 +897,7 @@ public final class BasicParticleEngine implements ParticleEngine {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -706,6 +909,7 @@ public final class BasicParticleEngine implements ParticleEngine {
             gustElapsed = 0.0f;
             gustTarget = (nextFloat() * 2.0f - 1.0f) * Math.abs(baseWind) * GUST_AMPLITUDE;
         }
+
         gustElapsed += dt;
         gustTimeRemaining -= dt;
         float interpolation = clamp(gustElapsed / gustDuration, 0.0f, 1.0f);
@@ -714,7 +918,7 @@ public final class BasicParticleEngine implements ParticleEngine {
     }
 
     private float distanceToSegment(float pointX, float pointY, float startX, float startY,
-                                    float endX, float endY) {
+            float endX, float endY) {
         float segmentX = endX - startX;
         float segmentY = endY - startY;
         float lengthSquared = segmentX * segmentX + segmentY * segmentY;

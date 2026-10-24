@@ -1,11 +1,12 @@
 {
   "id": "winter",
   "textures": [
-    { "id": "everfall:textures/particle/winter/snowflake_01.png", "weight": 1},
-    { "id": "everfall:textures/particle/winter/snowflake_02.png", "weight": 2},
-    { "id": "everfall:textures/particle/winter/snowflake_03.png", "weight": 2},
-    { "id": "everfall:textures/particle/winter/snowflake_04.png", "weight": 2},
-    { "id": "everfall:textures/particle/winter/snowflake_05.png", "weight": 1}
+    { "id": "everfall:textures/particle/winter/snowflake_1.png", "weight": 175},
+    { "id": "everfall:textures/particle/winter/snowflake_2.png", "weight": 350},
+    { "id": "everfall:textures/particle/winter/snowflake_3.png", "weight": 350},
+    { "id": "everfall:textures/particle/winter/snowflake_4.png", "weight": 350},
+    { "id": "everfall:textures/particle/winter/snowflake_5.png", "weight": 175},
+    { "id": "everfall:textures/particle/winter/snowflake_easter_egg_creeper.png", "weight": 1}
   ],
   "sweepSounds": ["everfall:winter.sweep"],
   "shortSweepSounds": ["everfall:winter.short_sweep"],

@@ -1,68 +1,67 @@
-# Additional particle profiles
+# Дополнительные профили
 
-Additional profiles are independent layers. Any number can be selected together in
-the **Features** settings category; the main seasonal profile stays active.
-Checking a feature permits automatic activation when its conditions match. It does
-not force the effect outside its conditions. Fireflies are selected by default.
+Дополнительный профиль — независимый эффект поверх выбранного основного профиля. Несколько таких эффектов можно разрешить одновременно в разделе особенностей. Переключатель разрешает активацию по условиям, а не принудительно включает эффект в любое время.
 
-The built-in example is `assets/everfall/profiles/additional/fireflies.json`.
-Add `.json` files under that same path in a resource pack, or override/add them in
-`config/everfall/profiles/additional/`. Reload resource packs (F3+T or the pack selection
-screen) to reload definitions, including config overrides. Each filename must match its `id`.
-Invalid files are logged and skipped; an invalid override retains the built-in.
-New custom profiles appear as independent switches, initially off. Several can be
-enabled together; no fixed slot count or exclusive feature selector is used.
+В 1.0.0 поддерживается один тип движения — `fireflies`. На нём можно создавать новые варианты цвета, размера, скорости и календарных условий с помощью JSON. Новый алгоритм движения требует реализации движка в Java; произвольный основной профиль нельзя автоматически использовать как дополнительный слой.
+
+## Файлы и пример
+
+Положите файл `golden_fireflies.json` в `assets/everfall/profiles/additional/` ресурспака либо в `config/everfall/profiles/additional/`:
 
 ```json
 {
   "schema": 1,
   "id": "golden_fireflies",
-  "name": "Golden fireflies",
   "motion": "fireflies",
   "maxParticles": 24,
-  "speed": 10.0,
-  "size": 1.0,
+  "speed": 10,
+  "size": 1,
   "color": 16773000,
   "conditions": {
     "profiles": ["spring", "summer"],
     "startHour": 21,
-    "endHour": 5
+    "endHour": 5,
+    "startDate": "06-01",
+    "endDate": "08-31"
   }
 }
 ```
 
-- `motion`: currently `fireflies`. The engine factory is separate from conditions
-  and selection so other motion models can be added without changing those systems.
-- `maxParticles`: the layer's population weight, relative to the main profile's
-  recommended count. All active layers share the configured **Particle count**
-  limit; enabling features does not exceed it. Zero disables this population.
-- `speed`: movement units per second in the selected display/GUI coordinate mode.
-- `size`: core size in GUI pixels. The procedural pixel glow extends to 5x this
-  size. No Minecraft textures, image files, audio, widget landing, or mouse capture
-  are used for fireflies. The full glow stays in the bottom third of the screen.
-- `color`: RGB as a decimal integer; fireflies pulse smoothly at independent phases.
-- `conditions.profiles`: main profile IDs; an empty/omitted list matches every main profile, including custom IDs.
-- `startHour`, `endHour`: local device time, start inclusive and end exclusive.
-  Wrapping midnight is supported; equal values mean all day. Built-in fireflies
-  match `[21:00, 05:00)` only in spring/summer, including manually chosen seasons.
-- Optional `startDate`, `endDate`: paired `MM-DD` dates, both inclusive, for annual
-  holiday windows. Year wrapping is supported (e.g. `12-24` through `01-07`).
-  Omit both for the whole year. Dates, hours, and profile conditions combine.
+Файл и `id` должны совпадать. Приоритеты, перезагрузка и обработка ошибок те же, что у [основных профилей](RESOURCE_PROFILES.md). Новые дополнительные профили появляются отдельными переключателями и изначально выключены; встроенные `fireflies` разрешены по умолчанию.
 
-Example holiday conditions:
+Название ищется по `everfall.feature.<id>` в файлах языка. Без перевода показывается ID. Старое поле `name` читается для совместимости формата, но не используется как отображаемое название.
 
-```json
-"conditions": {
-  "profiles": [],
-  "startHour": 0,
-  "endHour": 0,
-  "startDate": "12-24",
-  "endDate": "01-07"
-}
-```
+## Параметры
 
-Selected IDs are stored in `additionalProfiles` in `everfall.json5`. Conditions use
-the local device clock, never in-world Minecraft time. Time is sampled once per
-second. Effects also obey the global enable switch, screen/world visibility,
-coordinate mode, resizing/fullscreen resets, and zero particle count. Motion and
-pulsing update on every rendered frame. Instances persist across screen changes.
+| Поле | По умолчанию | Значение |
+|---|---|---|
+| `schema` | `1` | Поддерживается версия схемы 1 |
+| `id` | Обязательно | ID определения |
+| `motion` | `"fireflies"` | Доступный тип движка |
+| `maxParticles` | `24` | Вес количества относительно основного и других слоёв, от 0 до 100 000 |
+| `speed` | `10` | Скорость в выбранных координатах движения, конечная и ≥ 0 |
+| `size` | `1` | Базовый размер ядра в GUI-пикселях, > 0 и ≤ 64 |
+| `color` | `15335306` | Цвет RGB целым десятичным числом |
+| `conditions` | Нет ограничений | Фильтры основного профиля, времени и даты |
+
+Каждый светлячок получает постоянный случайный множитель размера от 1× до 2×. Ядро и свечение масштабируются вместе; внешний слой свечения в пять раз шире ядра. Движок учитывает индивидуальный радиус, чтобы эффект оставался в нижней трети экрана, в том числе на маленьком окне.
+
+Светлячки медленно меняют направление, случайно поворачивают и пульсируют. Для них не используются PNG, звуки, приземление или взаимодействие мышью. Ветер и гравитация основного профиля не превращают их движение в обычную физику падающих частиц.
+
+## Условия активации
+
+Все группы условий должны совпасть:
+
+- `profiles` — список ID основных профилей. Пустой или отсутствующий список подходит к любому ID, включая пользовательский.
+- `startHour`, `endHour` — местные часы 0–23. Начало включено, конец исключён. Интервал 21→5 проходит через полночь; одинаковые часы означают весь день.
+- `startDate`, `endDate` — необязательная пара `MM-DD`, обе границы включены. Допустим переход через Новый год, например 12-24→01-07. Указывается либо вся пара, либо ни одна дата.
+
+Встроенные светлячки разрешены только для `spring` и `summer` в интервале 21:00–05:00, без ограничения дня года. Условия проверяются и при ручном выборе этих профилей. Местное время для дополнительных эффектов обновляется примерно раз в секунду; это отдельная система от кэшированного [автовыбора сезона](SEASON_SELECTION.md).
+
+## Общий бюджет
+
+Дополнительные слои не добавляют частицы поверх глобального лимита. Система суммирует их веса и рекомендованное количество основного профиля, выделяет каждому активному слою пропорциональную долю, а остаток передаёт основному движку. Значение `maxParticles` внутри дополнительного профиля — вес для этого расчёта, не отдельный лимит сверх пользовательского.
+
+При выключении или несовпадении условий слой сбрасывается и больше не резервирует бюджет. На фоне все активные эффекты рисуются вместе с основными частицами за содержимым меню. Отсутствие открытого подходящего экрана или глобальное выключение Everfall также выключает отображение.
+
+Исходники: [AdditionalProfile](../src/main/java/com/yori3o/everfall/core/profile/AdditionalProfile.java), [AdditionalProfileRegistry](../src/main/java/com/yori3o/everfall/mc/AdditionalProfileRegistry.java), [AdditionalParticleSystem](../src/main/java/com/yori3o/everfall/core/engine/AdditionalParticleSystem.java), [FireflyParticleEngine](../src/main/java/com/yori3o/everfall/core/engine/FireflyParticleEngine.java).

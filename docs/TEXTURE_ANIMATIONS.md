@@ -1,115 +1,82 @@
-# Texture weights and alternative animation
+# Текстуры, веса и анимации
 
-Existing profile JSON is unchanged: missing `weight` means 1, and without
-`alternativeAnimationId` the texture loops exactly as before.
+Каждый элемент `textures` в основном профиле описывает отдельный вариант частицы. Вариант выбирается один раз при создании по относительному весу; затем его основная и дополнительная анимации используют тот же набор параметров кадров.
 
-```json
-"textures": [
-  {
-    "id": "everfall:textures/particle/autumn/leaf_01.png",
-    "weight": 1,
-    "scale": 1,
-    "frameCount": 8,
-    "frameTime": 4,
-    "alternativeAnimationId": "everfall:textures/particle/autumn/leaf_01_alternative.png",
-    "conditionsForAlternativeAnimation": [
-      { "type": "chance", "value": 0.25 },
-      { "type": "cooldown", "value": 5 }
-    ],
-    "conditionType": "both"
-  }
-]
-```
+## Формат текстуры
 
-## Weight
-
-`weight` is a finite nonnegative relative weight, chosen once when a particle
-spawns. Weights 9 and 1 mean 90% and 10%; weights 999 and 1 mean 99.9% and 0.1%.
-Fractional weights are supported, including very small weights for rare sprites.
-Weight 0 excludes that texture. At least one texture must have positive weight.
-The selection uses the engine's seeded RNG, with 53-bit precision.
-
-## Automatic frame dimensions
-
-Do not specify `frameSize`. The loader reads image headers when profiles load:
-
-- frame width = full image width;
-- frame height = full image height / `frameCount` (default 1).
-
-Frames are stacked vertically. For example, a 12x40 image with `frameCount: 8`
-contains 12x5 rectangular frames. The image height must be divisible by the count.
-Old `frameSize` fields in user overrides are ignored. The main and alternative
-sheets are inspected independently; their frame counts and timing remain shared.
-Available Minecraft resources are preferred, with built-in assets as the startup
-fallback. Dimensions are resolved at profile load, never during a frame.
-Missing or malformed textures are logged and skipped; if an alternative is bad,
-its main texture remains usable. At least one valid main texture is required.
-
-## Scale
-
-`scale` is a positive finite size multiplier, default 1. For a 12x5 frame,
-`scale: 2` draws a 24x10 particle; `scale: 0.5` draws it at 6x2.5 GUI pixels.
-It applies equally to main and alternative animation, and to particle landing bounds
-and cursor-interaction centers. The inferred frame dimensions remain the source size: changing
-`scale` never changes UVs, frame count, frame timing, or movement speed. GUI scale
-is applied afterward as before. Zero, negative, and nonfinite scales are rejected;
-use weight 0 to exclude a texture instead.
-
-## Alternative animation
-
-The alternative uses a different texture sheet with the same `frameCount` and
-`frameTime`. Both sheets contain vertically stacked frames. Each sheet has its
-own inferred width and height. If these differ, particle bounds follow the active
-sheet and its center stays fixed when switching.
-`frameTime` retains its existing unit: twentieths of a second (4 means 0.2 s/frame).
-
-Conditions are evaluated only when the main animation reaches the end of a cycle.
-If they pass, the alternative starts at frame 0, plays one complete cycle, and
-returns to main frame 0. The particle keeps its identity, velocity, and sound
-state; its dimensions follow the active sheet. Time remaining in a rendered frame carries into the next animation.
-
-- `chance`: probability from 0 to 1, rolled independently for each eligible main
-  cycle and particle. 0 never passes; 1 always passes.
-- `cooldown`: nonnegative seconds **per particle**, starting at its creation, then
-  restarting when its alternative animation finishes. Failed checks do not restart
-  it. This is not a shared cooldown for all particles using the texture.
-- `conditionType`: `both` (default) requires all listed conditions; `any` requires
-  at least one. An empty or omitted condition list allows the alternative after
-  every main cycle. Unsupported conditions, duplicates, invalid values, and
-  unsupported combination modes are rejected during profile validation.
-
-With the example above, the first alternative is possible at the first main cycle
-boundary at or after 5 seconds of particle existence, with a 25% chance. After the
-alternative finishes, another 5 seconds must pass before it can qualify again.
-The main animation keeps looping while conditions fail; requests are not queued.
-
-Both animations pause on resting and mouse-held particles and resume from the
-same frame and fractional frame time. Cooldown seconds continue accumulating
-while a particle rests or is held, but animation conditions are not checked until
-an airborne main animation completes a cycle. All timing uses the engine's frame
-time, including its existing stall clamp. A work cap limits pathological animation
-definitions to 64 cycle transitions per rendered frame; excess time skips main
-cycles without further condition rolls.
-
-The implementation does not rewrite profile JSON or create texture sheets. Supply
-the alternative sheet and fields in a built-in profile or normal profile override.
-
-## Wind mirroring
-
-`flipWithWind` is a **profile-level** boolean, default `false`:
+Пример элемента массива `textures`:
 
 ```json
 {
-  "id": "autumn",
-  "flipWithWind": true,
-  "textures": []
+  "id": "everfall:textures/particle/autumn/leaf_1.png",
+  "weight": 2,
+  "scale": 2,
+  "frameCount": 8,
+  "frameTime": 4,
+  "repeat": true,
+  "alternativeAnimationId": "everfall:textures/particle/autumn/leaf_1_alternative.png",
+  "conditionsForAlternativeAnimation": [
+    { "type": "chance", "value": 0.25 },
+    { "type": "cooldown", "value": 5 }
+  ],
+  "conditionType": "both"
 }
 ```
 
-The snippet shows the placement only; retain the profile's actual textures and
-other fields. When enabled, negative configured wind mirrors every particle
-horizontally; positive or zero wind uses the original orientation. Existing
-particles update immediately when the wind direction changes. Both main and
-alternative sheets are mirrored by reversing their horizontal UVs, preserving
-position, scale, animation progress, and collision bounds. When false, wind never
-changes the texture's orientation. Procedural additional effects are unaffected.
+| Поле | По умолчанию | Допустимые значения |
+|---|---|---|
+| `id` | Обязательно | ID PNG, включая `textures/` и `.png` |
+| `weight` | `1` | Конечное число ≥ 0; хотя бы один вариант должен иметь вес > 0 |
+| `scale` | `1` | Конечное число > 0 |
+| `frameCount` | `1` | Целое от 1 до 128 |
+| `frameTime` | `1` | Конечное число > 0, в двадцатых долях секунды |
+| `repeat` | `true` | Повторять основную анимацию |
+| `alternativeAnimationId` | Нет | PNG дополнительной анимации |
+| `conditionsForAlternativeAnimation` | `[]` | Условия для альтернативы |
+| `conditionType` | `"both"` | `both` или `any` |
+
+`frameTime: 4` означает 0,2 секунды на кадр, `20` — одну секунду. Эти единицы не привязывают обновление движка к игровым тикам.
+
+## Размеры и масштаб
+
+Кадры размещаются в PNG вертикально. Ширина кадра равна полной ширине картинки; высота — высоте картинки, поделённой на `frameCount`. Например, PNG 12×40 с восемью кадрами даёт прямоугольный кадр 12×5. Высота изображения должна делиться на количество кадров без остатка.
+
+`frameSize` не используется и не нужен. Основная и альтернативная картинки измеряются независимо. Если их размеры различаются, при переключении размер частицы меняется с сохранением центра.
+
+`scale` меняет отображаемые размеры и соответствующую геометрию взаимодействия; UV и исходные размеры кадров остаются прежними. Для кадра 12×5 и масштаба 2 получается частица 24×10 в GUI-пикселях до преобразования в выбранные координаты движения.
+
+При загрузке определяется первая и последняя строка с ненулевой альфой для каждого кадра. При приземлении учитывается видимый нижний край, а при отрицательной гравитации — верхний. Поэтому пустые строки спрайта не заставляют частицу висеть над кнопкой. Изображение при этом не обрезается и не сжимается; полностью прозрачный кадр не приземляется.
+
+## Вес и редкие варианты
+
+Вероятность варианта равна его весу, поделённому на сумму весов. Веса 9 и 1 дают 90% и 10%; допускаются дробные значения. Нулевой вес выключает вариант.
+
+Вес задаёт вероятность на создание, а не интервал в реальном времени. Частота появления пасхалки зависит также от количества частиц, скорости их удаления и генерации. Для редкости «раз в N минут» нужно учитывать реальную частоту спавна, а не только число живых частиц.
+
+## Повторение и окончание
+
+При `repeat: true` основная анимация зациклена, а новые частицы начинают со случайного кадра и времени внутри него, чтобы не двигаться синхронно.
+
+При `repeat: false` каждая частица начинает с первого кадра и нулевого времени. После полного показа последнего кадра она удаляется в том же шаге, без нового цикла и без запуска альтернативы. Восемь кадров с `frameTime: 20` дают восемь секунд активного проигрывания. Обычные причины удаления, например выход за экран или истечение жизни в спокойном режиме, также действуют.
+
+Лежащие и захваченные мышью частицы приостанавливают анимацию; после освобождения продолжают с того же кадра и дробного времени. Это относится и к неповторяющейся анимации.
+
+## Альтернативная анимация
+
+Условия проверяются на границе завершённого цикла основной анимации. При успехе альтернатива играет один цикл, затем возвращается к первому кадру основной. `frameCount` и `frameTime` общие, размеры PNG могут различаться.
+
+- `chance` — независимый случайный шанс 0–1 на каждую проверку.
+- `cooldown` — минимальное время в секундах с создания частицы или окончания её последней альтернативы. Неудачный шанс не перезапускает таймер.
+- `both` требует выполнения всех условий; `any` — хотя бы одного. Пустой список разрешает альтернативу после каждого основного цикла.
+
+В примере первое срабатывание возможно после пяти секунд существования частицы на ближайшей границе основного цикла, с шансом 25%. После альтернативы снова отсчитываются пять секунд. Cooldown индивидуален для частицы и продолжает идти на опоре или при захвате, но проверка ждёт окончания следующего активного основного цикла.
+
+Неизвестные типы, повторяющиеся условия, отрицательные и неконечные значения отклоняются. Отсутствующий PNG альтернативы логируется и оставляет основную анимацию рабочей.
+
+## Параметры самого профиля
+
+`sway: false` выключает лёгкое горизонтальное покачивание, не меняя анимацию, ветер и гравитацию. По умолчанию `sway: true`.
+
+`flipWithWind: true` отражает UV по X при отрицательном настроенном ветре; при положительном или нулевом ориентация обычная. Меняются и уже существующие частицы, включая альтернативу. По умолчанию `false`; порывы не переключают отражение отдельно от настроенного знака ветра.
+
+Исходники: [ParticleProfile](../src/main/java/com/yori3o/everfall/core/profile/ParticleProfile.java), [TextureMetadata](../src/main/java/com/yori3o/everfall/mc/compat/TextureMetadata.java), [BasicParticleEngine](../src/main/java/com/yori3o/everfall/core/engine/BasicParticleEngine.java).
