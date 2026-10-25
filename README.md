@@ -40,7 +40,7 @@ Seasonal selection is enabled by default. Turn it off to choose a theme yourself
 
 ## 📖 Documentation
 
-[Player settings, custom profiles and development](docs/README.md) · [Project overview](PROJECT_CONTEXT.md) · [Building all versions](docs/BUILD_AND_COMPATIBILITY.md)
+[Player settings, custom profiles and development](docs/README.md) · [Building all versions](docs/BUILD_AND_COMPATIBILITY.md)
 
 ## 🐞 Issues & suggestions
 
